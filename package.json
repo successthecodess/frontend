@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "vercel-build": "npm run prepare && next build"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.35.2",
