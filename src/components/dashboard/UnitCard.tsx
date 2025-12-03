@@ -5,21 +5,20 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { ArrowRight, CheckCircle2, Lock } from 'lucide-react';
 import Link from 'next/link';
-import type { Unit, UserProgress } from '@/types';
+import type { Unit } from '@/types';
 
 interface UnitCardProps {
   unit: Unit;
-  progress?: UserProgress;
+  progress?: any;
   isLocked?: boolean;
 }
 
 export function UnitCard({ unit, progress, isLocked = false }: UnitCardProps) {
   const masteryLevel = progress?.masteryLevel || 0;
-  const accuracy = progress
+  const accuracy = progress && progress.totalAttempts > 0
     ? Math.round((progress.correctAttempts / progress.totalAttempts) * 100)
     : 0;
 
-  // Use unit.id instead of unit.unitNumber for the link
   return (
     <Link href={isLocked ? '#' : `/dashboard/practice/${unit.id}`}>
       <Card

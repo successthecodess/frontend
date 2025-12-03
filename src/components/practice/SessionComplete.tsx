@@ -3,167 +3,215 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
-import { 
-  Trophy, 
-  Target, 
-  Clock, 
+import {
+  CheckCircle,
+  Target,
+  Clock,
   TrendingUp,
-  CheckCircle2,
-  XCircle,
   RotateCcw,
-  ArrowRight
+  Home,
 } from 'lucide-react';
 import type { SessionSummary } from '@/types';
 
 interface SessionCompleteProps {
   summary: SessionSummary;
-  onRestart: () => void;
-  onBackToUnits: () => void;
+  unitName: string;
+  onRetry: () => void;
+  onBackToDashboard: () => void;
 }
 
-export function SessionComplete({ summary, onRestart, onBackToUnits }: SessionCompleteProps) {
-  const isPerfect = summary.accuracyRate === 100;
-  const isExcellent = summary.accuracyRate >= 85;
-  const isGood = summary.accuracyRate >= 70;
+export function SessionComplete({
+  summary,
+  unitName,
+  onRetry,
+  onBackToDashboard,
+}: SessionCompleteProps) {
+  const accuracyPercentage = summary.accuracyRate || 0;
+  const grade = getGrade(accuracyPercentage);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6">
+    <div className="mx-auto max-w-4xl">
       {/* Header */}
-      <Card className="overflow-hidden border-2 border-indigo-200 bg-gradient-to-br from-indigo-50 to-purple-50 p-8">
-        <div className="text-center">
-          <div className="mb-4 flex justify-center">
-            {isPerfect ? (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-yellow-400 shadow-lg">
-                <Trophy className="h-12 w-12 text-yellow-900" />
-              </div>
-            ) : isExcellent ? (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-green-400 shadow-lg">
-                <CheckCircle2 className="h-12 w-12 text-green-900" />
-              </div>
-            ) : (
-              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-blue-400 shadow-lg">
-                <Target className="h-12 w-12 text-blue-900" />
-              </div>
-            )}
+      <Card className="mb-6 overflow-hidden">
+        <div className="bg-gradient-to-r from-indigo-600 to-purple-600 p-8 text-white">
+          <div className="mb-4 flex items-center justify-center">
+            <div className="flex h-20 w-20 items-center justify-center rounded-full bg-white/20">
+              <CheckCircle className="h-12 w-12" />
+            </div>
+          </div>
+          <h1 className="mb-2 text-center text-3xl font-bold">
+            Session Complete!
+          </h1>
+          <p className="text-center text-lg text-white/90">{unitName}</p>
+        </div>
+
+        {/* Main Stats */}
+        <div className="grid gap-6 p-8 md:grid-cols-4">
+          <div className="text-center">
+            <div className="mb-2 text-3xl font-bold text-indigo-600">
+              {summary.totalQuestions}
+            </div>
+            <p className="text-sm text-gray-600">Questions</p>
           </div>
 
-          <h2 className="text-3xl font-bold text-gray-900">
-            {isPerfect && '🎉 Perfect Score!'}
-            {isExcellent && !isPerfect && '🌟 Excellent Work!'}
-            {isGood && !isExcellent && '👏 Great Job!'}
-            {!isGood && '💪 Good Effort!'}
-          </h2>
-          <p className="mt-2 text-lg text-gray-700">
-            You completed {summary.totalQuestions} questions
-          </p>
+          <div className="text-center">
+            <div className="mb-2 text-3xl font-bold text-green-600">
+              {summary.correctAnswers}
+            </div>
+            <p className="text-sm text-gray-600">Correct</p>
+          </div>
+
+          <div className="text-center">
+            <div className="mb-2 text-3xl font-bold text-purple-600">
+              {accuracyPercentage}%
+            </div>
+            <p className="text-sm text-gray-600">Accuracy</p>
+          </div>
+
+          <div className="text-center">
+            <Badge
+              variant={
+                grade === 'A'
+                  ? 'default'
+                  : grade === 'B'
+                  ? 'secondary'
+                  : 'outline'
+              }
+              className="mb-2 text-2xl font-bold px-4 py-2"
+            >
+              {grade}
+            </Badge>
+            <p className="text-sm text-gray-600">Grade</p>
+          </div>
         </div>
       </Card>
 
-      {/* Stats Grid */}
-      <div className="grid gap-6 md:grid-cols-3">
+      {/* Detailed Stats */}
+      <div className="mb-6 grid gap-6 md:grid-cols-2">
+        {/* Time Stats */}
         <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
+          <div className="mb-4 flex items-center gap-3">
+            <div className="rounded-full bg-blue-100 p-2">
+              <Clock className="h-5 w-5 text-blue-600" />
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Correct Answers</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {summary.correctAnswers}/{summary.totalQuestions}
-              </p>
+            <h3 className="text-lg font-semibold text-gray-900">Time Stats</h3>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Total Time</span>
+              <span className="font-semibold text-gray-900">
+                {formatTime(summary.totalDuration)}
+              </span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Avg per Question</span>
+              <span className="font-semibold text-gray-900">
+                {summary.averageTime}s
+              </span>
             </div>
           </div>
         </Card>
 
+        {/* Performance */}
         <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-blue-100">
-              <Target className="h-6 w-6 text-blue-600" />
+          <div className="mb-4 flex items-center gap-3">
+            <div className="rounded-full bg-green-100 p-2">
+              <TrendingUp className="h-5 w-5 text-green-600" />
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Accuracy Rate</p>
-              <p className="text-2xl font-bold text-gray-900">{summary.accuracyRate}%</p>
-            </div>
+            <h3 className="text-lg font-semibold text-gray-900">Performance</h3>
           </div>
-        </Card>
-
-        <Card className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-purple-100">
-              <Clock className="h-6 w-6 text-purple-600" />
+          <div className="space-y-3">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Correct</span>
+              <span className="font-semibold text-green-600">
+                {summary.correctAnswers}
+              </span>
             </div>
-            <div>
-              <p className="text-sm text-gray-600">Avg Time</p>
-              <p className="text-2xl font-bold text-gray-900">
-                {Math.floor(summary.averageTime / 60)}:{String(summary.averageTime % 60).padStart(2, '0')}
-              </p>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Incorrect</span>
+              <span className="font-semibold text-red-600">
+                {summary.totalQuestions - summary.correctAnswers}
+              </span>
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Topic Breakdown */}
-      {Object.keys(summary.topicBreakdown).length > 0 && (
-        <Card className="p-6">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900">Performance by Topic</h3>
-          <div className="space-y-4">
-            {Object.entries(summary.topicBreakdown).map(([topic, stats]) => {
-              const accuracy = Math.round((stats.correct / stats.total) * 100);
-              return (
-                <div key={topic}>
-                  <div className="mb-2 flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-700">{topic}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm text-gray-600">
-                        {stats.correct}/{stats.total}
-                      </span>
-                      <Badge variant={accuracy >= 80 ? 'default' : 'secondary'}>
-                        {accuracy}%
-                      </Badge>
-                    </div>
-                  </div>
-                  <Progress value={accuracy} className="h-2" />
+      {/* Response Breakdown */}
+      {summary.responses && summary.responses.length > 0 && (
+        <Card className="mb-6 p-6">
+          <div className="mb-4 flex items-center gap-3">
+            <div className="rounded-full bg-purple-100 p-2">
+              <Target className="h-5 w-5 text-purple-600" />
+            </div>
+            <h3 className="text-lg font-semibold text-gray-900">
+              Question Breakdown
+            </h3>
+          </div>
+          <div className="max-h-64 space-y-2 overflow-y-auto">
+            {summary.responses.map((response, idx) => (
+              <div
+                key={idx}
+                className="flex items-center justify-between rounded-lg border p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-sm font-medium text-gray-600">
+                    Q{idx + 1}
+                  </span>
+                  {response.topic && (
+                    <Badge variant="outline" className="text-xs">
+                      {response.topic}
+                    </Badge>
+                  )}
                 </div>
-              );
-            })}
+                <div className="flex items-center gap-3">
+                  {response.timeSpent && (
+                    <span className="text-xs text-gray-500">
+                      {response.timeSpent}s
+                    </span>
+                  )}
+                  {response.isCorrect ? (
+                    <CheckCircle className="h-5 w-5 text-green-600" />
+                  ) : (
+                    <div className="h-5 w-5 rounded-full border-2 border-red-600" />
+                  )}
+                </div>
+              </div>
+            ))}
           </div>
         </Card>
       )}
 
-      {/* Difficulty Breakdown */}
-      <Card className="p-6">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900">Performance by Difficulty</h3>
-        <div className="grid gap-4 md:grid-cols-4">
-          {(['EASY', 'MEDIUM', 'HARD', 'EXPERT'] as const).map((difficulty) => {
-            const stats = summary.difficultyBreakdown[difficulty];
-            if (!stats) return null;
-            const accuracy = Math.round((stats.correct / stats.total) * 100);
-            
-            return (
-              <div key={difficulty} className="text-center">
-                <Badge className="mb-2">{difficulty}</Badge>
-                <p className="text-2xl font-bold text-gray-900">{accuracy}%</p>
-                <p className="text-sm text-gray-600">
-                  {stats.correct}/{stats.total}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </Card>
-
       {/* Actions */}
       <div className="flex gap-4">
-        <Button onClick={onRestart} size="lg" className="flex-1 gap-2">
-          <RotateCcw className="h-5 w-5" />
-          Practice Again
+        <Button
+          onClick={onBackToDashboard}
+          variant="outline"
+          className="flex-1 gap-2"
+        >
+          <Home className="h-4 w-4" />
+          Back to Dashboard
         </Button>
-        <Button onClick={onBackToUnits} size="lg" variant="outline" className="flex-1 gap-2">
-          Back to Units
-          <ArrowRight className="h-5 w-5" />
+        <Button onClick={onRetry} className="flex-1 gap-2">
+          <RotateCcw className="h-4 w-4" />
+          Practice Again
         </Button>
       </div>
     </div>
   );
+}
+
+function getGrade(accuracy: number): string {
+  if (accuracy >= 90) return 'A';
+  if (accuracy >= 80) return 'B';
+  if (accuracy >= 70) return 'C';
+  if (accuracy >= 60) return 'D';
+  return 'F';
+}
+
+function formatTime(seconds: number): string {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  if (mins === 0) return `${secs}s`;
+  return `${mins}m ${secs}s`;
 }
