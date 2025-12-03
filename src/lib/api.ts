@@ -35,6 +35,11 @@ export const api = {
     return handleResponse(response);
   },
 
+  async getTopicsByUnit(unitId: string) {
+    const response = await fetch(`${API_BASE_URL}/units/${unitId}/topics`);
+    return handleResponse(response);
+  },
+
   // Practice
   async startPracticeSession(
     userId: string,
@@ -119,6 +124,16 @@ export const api = {
   },
 
   // Admin
+  async getAdminStats() {
+    const response = await fetch(`${API_BASE_URL}/admin/dashboard/stats`);
+    return handleResponse(response);
+  },
+
+  async getDashboardStats() {
+    const response = await fetch(`${API_BASE_URL}/admin/dashboard/stats`);
+    return handleResponse(response);
+  },
+
   async getQuestions(filters?: any) {
     const params = new URLSearchParams(filters);
     const response = await fetch(`${API_BASE_URL}/admin/questions?${params}`);
@@ -172,16 +187,6 @@ export const api = {
       method: 'POST',
       body: formData,
     });
-    return handleResponse(response);
-  },
-
-  async getDashboardStats() {
-    const response = await fetch(`${API_BASE_URL}/admin/dashboard/stats`);
-    return handleResponse(response);
-  },
-
-  async getTopicsByUnit(unitId: string) {
-    const response = await fetch(`${API_BASE_URL}/units/${unitId}/topics`);
     return handleResponse(response);
   },
 
