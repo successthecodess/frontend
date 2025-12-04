@@ -24,7 +24,7 @@ export default function ViewQuestionPage() {
 
   const loadQuestion = async () => {
     try {
-      const response = await api.getQuestionById(questionId);
+      const response = await api.getQuestion(questionId);
       setQuestion(response.data.question);
     } catch (error) {
       console.error('Failed to load question:', error);

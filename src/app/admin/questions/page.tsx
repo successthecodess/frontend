@@ -46,7 +46,7 @@ export default function QuestionsPage() {
 
   const loadQuestions = async () => {
     try {
-      const response = await api.getAllQuestions();
+      const response = await api.getQuestions();
       setQuestions(response.data.questions || []);
     } catch (error) {
       console.error('Failed to load questions:', error);

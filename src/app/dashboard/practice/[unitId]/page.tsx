@@ -3,166 +3,214 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
+import { api } from '@/lib/api';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { FeedbackCard } from '@/components/practice/FeedbackCard';
-import { ProgressBar } from '@/components/practice/ProgressBar';
-import { LearningInsights } from '@/components/practice/LearningInsights';
-import { SessionComplete } from '@/components/practice/SessionComplete';
-import { SessionSettings } from '@/components/practice/SessionSettings';
-import { EmptyQuestionBank } from '@/components/dashboard/EmptyQuestionBank';
-import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, X, AlertCircle } from 'lucide-react';
-import { api } from '@/lib/api';
-import type { Question, PracticeSession, AnswerResult, ProgressMetrics, Unit, SessionSummary } from '@/types';
+import { SessionProgressCard } from '@/components/practice/SessionProgressCard';
+import { LearningInsightsCard } from '@/components/practice/LearningInsightsCard';
+import { SessionSummary } from '@/components/practice/SessionSummary';
+import { Loader2 } from 'lucide-react';
+import type { Unit, Question, StudySession, AnswerResult, ProgressMetrics } from '@/types';
 
 export default function PracticePage() {
   const params = useParams();
   const router = useRouter();
-  const { user, isLoaded } = useUser();
-  const unitParam = params.unitId as string;
+  const { user } = useUser();
+  const unitId = params.unitId as string;
 
   const [unit, setUnit] = useState<Unit | null>(null);
-  const [session, setSession] = useState<PracticeSession | null>(null);
+  const [session, setSession] = useState<StudySession | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
   const [answerResult, setAnswerResult] = useState<AnswerResult | null>(null);
-  const [answeredQuestions, setAnsweredQuestions] = useState<string[]>([]);
   const [progress, setProgress] = useState<ProgressMetrics | null>(null);
-  const [insights, setInsights] = useState<any>(null);
-  const [sessionSummary, setSessionSummary] = useState<SessionSummary | null>(null);
-  const [showCompletion, setShowCompletion] = useState(false);
-  const [showSettings, setShowSettings] = useState(false);
-  const [targetQuestions, setTargetQuestions] = useState(40);
-  const [isLoading, setIsLoading] = useState(true);
+  const [answeredQuestions, setAnsweredQuestions] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoadingNext, setIsLoadingNext] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [noQuestionsAvailable, setNoQuestionsAvailable] = useState(false);
+  const [sessionSummary, setSessionSummary] = useState<any>(null);
+  const [targetQuestions, setTargetQuestions] = useState(10);
 
+  // Load session from localStorage or create new one
   useEffect(() => {
-    if (unitParam) {
-      loadUnit();
-    }
-  }, [unitParam]);
+    const initializeSession = async () => {
+      if (!user) return;
 
-  useEffect(() => {
-    if (isLoaded && user && unit && !session) {
-      setIsLoading(false);
-      setShowSettings(true);
-    }
-  }, [isLoaded, user, unit, session]);
+      try {
+        setLoading(true);
+        setError(null);
 
-  const loadUnit = async () => {
+        // Get target questions from query params or localStorage
+        const urlParams = new URLSearchParams(window.location.search);
+        const questionsParam = urlParams.get('questions');
+        const storedTarget = localStorage.getItem('targetQuestions');
+        const target = questionsParam ? parseInt(questionsParam) : (storedTarget ? parseInt(storedTarget) : 10);
+        setTargetQuestions(target);
+        localStorage.setItem('targetQuestions', target.toString());
+
+        // Load unit data
+        const unitResponse = await api.getUnit(unitId);
+        setUnit(unitResponse.data);
+
+        // Check for existing session in localStorage
+        const storedSessionId = localStorage.getItem(`session_${unitId}`);
+        
+        if (storedSessionId) {
+          // Try to resume session
+          try {
+            const sessionData = JSON.parse(localStorage.getItem(`sessionData_${unitId}`) || '{}');
+            setSession(sessionData.session);
+            setAnsweredQuestions(sessionData.answeredQuestions || []);
+            
+            // Load progress
+            await loadProgress();
+            
+            // Get next question
+            const questionResponse = await api.getNextQuestion(
+              user.id,
+              storedSessionId,
+              unitId,
+              sessionData.answeredQuestions || []
+            );
+
+            if (questionResponse.data.question) {
+              console.log('📝 Loaded question:', questionResponse.data.question.difficulty);
+              setCurrentQuestion(questionResponse.data.question);
+            } else {
+              // Session complete
+              await loadSessionSummary();
+            }
+          } catch (error) {
+            console.error('Failed to resume session, starting new one:', error);
+            localStorage.removeItem(`session_${unitId}`);
+            localStorage.removeItem(`sessionData_${unitId}`);
+            await startNewSession(target);
+          }
+        } else {
+          // Start new session
+          await startNewSession(target);
+        }
+      } catch (error: any) {
+        console.error('Failed to initialize session:', error);
+        setError(error.message || 'Failed to start practice session');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeSession();
+  }, [user, unitId]);
+
+  const startNewSession = async (target: number) => {
+    if (!user) return;
+
     try {
-      const response = await api.getUnit(unitParam);
-      setUnit(response.data.unit);
-    } catch (error) {
-      console.error('Failed to load unit:', error);
-      setError('Failed to load unit');
-      setIsLoading(false);
+      const response = await api.startPracticeSession(
+        user.id,
+        unitId,
+        undefined,
+        user.emailAddresses[0]?.emailAddress,
+        user.fullName || user.firstName || undefined,
+        target
+      );
+
+      console.log('🎯 Session started with difficulty:', response.data.recommendedDifficulty);
+      console.log('📝 First question difficulty:', response.data.question.difficulty);
+
+      setSession(response.data.session);
+      setCurrentQuestion(response.data.question);
+      
+      if (response.data.progress) {
+        setProgress(response.data.progress);
+      }
+
+      // Store session ID
+      localStorage.setItem(`session_${unitId}`, response.data.session.id);
+      localStorage.setItem(`sessionData_${unitId}`, JSON.stringify({
+        session: response.data.session,
+        answeredQuestions: [],
+      }));
+
+      await loadProgress();
+      await loadInsights();
+    } catch (error: any) {
+      throw error;
     }
   };
 
-  const handleStartWithSettings = async (questionCount: number) => {
-    if (!unit) return;
-    setIsLoading(true);
-    setError(null);
-    setNoQuestionsAvailable(false);
-    
-    try {
-      const response = await api.startPracticeSession(
-        user!.id, 
-        unit.id,
-        undefined,
-        user?.primaryEmailAddress?.emailAddress,
-        user?.fullName || user?.firstName || undefined,
-        questionCount
-      );
-      
-      setSession(response.data.session);
-      setCurrentQuestion(response.data.question);
-      setTargetQuestions(questionCount);
-      setShowSettings(false);
-      setProgress({
-        currentDifficulty: response.data.recommendedDifficulty,
-        consecutiveCorrect: 0,
-        consecutiveWrong: 0,
-        totalAttempts: 0,
-        correctAttempts: 0,
-        masteryLevel: 0,
-      });
+  const loadProgress = async () => {
+    if (!user) return;
 
-      loadInsights();
-    } catch (error: any) {
-      console.error('Failed to start session:', error);
-      
-      if (error.message?.includes('No approved questions') || 
-          error.message?.includes('No questions available')) {
-        setNoQuestionsAvailable(true);
-      } else {
-        setError(error.message || 'Failed to start session');
+    try {
+      const response = await api.getUserProgress(user.id, unitId);
+      if (response.data.progress) {
+        console.log('📊 Current progress:', response.data.progress);
+        setProgress(response.data.progress);
       }
-    } finally {
-      setIsLoading(false);
+    } catch (error) {
+      console.error('Failed to load progress:', error);
     }
   };
 
   const loadInsights = async () => {
-    if (!user || !unit) return;
-    
+    if (!user) return;
+
     try {
-      const response = await api.getLearningInsights(user.id, unit.id);
-      setInsights(response.data);
+      await api.getLearningInsights(user.id, unitId);
     } catch (error) {
       console.error('Failed to load insights:', error);
     }
   };
 
-const handleSubmitAnswer = async (answer: string, timeSpent: number) => {
-  if (!session || !currentQuestion || !user) return;
+  const handleSubmitAnswer = async (answer: string, timeSpent: number) => {
+    if (!session || !currentQuestion || !user) return;
 
-  setIsSubmitting(true);
-  try {
-    const response = await api.submitAnswer(
-      user.id,
-      session.id,
-      currentQuestion.id,
-      answer,
-      timeSpent
-    );
-
-    setAnswerResult(response.data);
-    setAnsweredQuestions([...answeredQuestions, currentQuestion.id]);
-
-    // Update progress from backend response
-    if (response.data.progress) {
-      setProgress(response.data.progress);
-    }
-
-    // Update session stats from backend response
-    if (response.data.session) {
-      setSession(response.data.session);
+    setIsSubmitting(true);
+    try {
+      console.log('📝 Submitting answer for question:', currentQuestion.difficulty);
       
-      // Check if this was the last question
-      if (response.data.session.totalQuestions >= targetQuestions) {
-        console.log('🎉 That was the last question!');
-        // Don't load summary yet, wait for user to click "Continue"
-      }
-    }
+      const response = await api.submitAnswer(
+        user.id,
+        session.id,
+        currentQuestion.id,
+        answer,
+        timeSpent
+      );
 
-    // Reload insights after answer
-    loadInsights();
-  } catch (error: any) {
-    console.error('Failed to submit answer:', error);
-    setError(error.message || 'Failed to submit answer');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+      console.log('✅ Answer submitted. Result:', response.data.isCorrect ? 'Correct' : 'Incorrect');
+      console.log('📊 New difficulty level:', response.data.progress?.currentDifficulty);
+
+      setAnswerResult(response.data);
+      setAnsweredQuestions([...answeredQuestions, currentQuestion.id]);
+
+      // Update progress from backend response
+      if (response.data.progress) {
+        setProgress(response.data.progress);
+      }
+
+      // Update session stats from backend response
+      if (response.data.session) {
+        setSession(response.data.session);
+        
+        // Save to localStorage
+        localStorage.setItem(`sessionData_${unitId}`, JSON.stringify({
+          session: response.data.session,
+          answeredQuestions: [...answeredQuestions, currentQuestion.id],
+        }));
+      }
+
+      // Reload insights after answer
+      loadInsights();
+    } catch (error: any) {
+      console.error('Failed to submit answer:', error);
+      setError(error.message || 'Failed to submit answer');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
 const handleNextQuestion = async () => {
-  if (!session || !user || !unit) return;
+  if (!session || !user) return;
 
   // Check if session is complete BEFORE trying to get next question
   if (session.totalQuestions >= targetQuestions) {
@@ -176,10 +224,14 @@ const handleNextQuestion = async () => {
     setAnswerResult(null);
     setError(null);
     
+    console.log('🔄 Getting next question...');
+    console.log('📊 Unit ID:', unitId); // Use unitId from params, NOT unit.id
+    console.log('📊 Current student level:', progress?.currentDifficulty);
+    
     const response = await api.getNextQuestion(
       user.id,
       session.id,
-      unit.id,
+      unitId, // CRITICAL: Use unitId from params!
       answeredQuestions
     );
 
@@ -189,11 +241,16 @@ const handleNextQuestion = async () => {
       return;
     }
 
+    console.log('📝 Next question loaded:', response.data.question.difficulty);
+    console.log('📊 Should match student level:', progress?.currentDifficulty);
+
     setCurrentQuestion(response.data.question);
+    
+    // Reload progress to get updated difficulty
+    await loadProgress();
   } catch (error: any) {
     console.error('Failed to get next question:', error);
     
-    // If error mentions completion, show summary
     if (error.message?.includes('completed all') || 
         error.message?.includes('No more questions available') ||
         error.message?.includes('Session complete')) {
@@ -206,69 +263,39 @@ const handleNextQuestion = async () => {
     setIsLoadingNext(false);
   }
 };
-
   const loadSessionSummary = async () => {
     if (!session) return;
 
     try {
-      console.log('📊 Loading session summary for:', session.id);
       const response = await api.endPracticeSession(session.id);
-      console.log('✅ Session summary loaded:', response.data);
       setSessionSummary(response.data.summary);
-      setShowCompletion(true);
+      
+      // Clear localStorage
+      localStorage.removeItem(`session_${unitId}`);
+      localStorage.removeItem(`sessionData_${unitId}`);
     } catch (error: any) {
-      console.error('❌ Failed to load session summary:', error);
+      console.error('Failed to load session summary:', error);
       setError(error.message || 'Failed to load session summary');
     }
   };
 
-  const handleEndSession = async () => {
-    if (!session) return;
-
-    if (
-      confirm(
-        'Are you sure you want to end this session? Your progress will be saved.'
-      )
-    ) {
-      await loadSessionSummary();
-    }
+  const handleReturnToDashboard = () => {
+    router.push('/dashboard');
   };
 
   const handleRetry = () => {
-    setSession(null);
-    setCurrentQuestion(null);
-    setAnswerResult(null);
-    setAnsweredQuestions([]);
-    setProgress(null);
-    setSessionSummary(null);
-    setShowCompletion(false);
-    setShowSettings(true);
-    setError(null);
-    setNoQuestionsAvailable(false);
+    // Clear state and localStorage
+    localStorage.removeItem(`session_${unitId}`);
+    localStorage.removeItem(`sessionData_${unitId}`);
+    router.refresh();
   };
 
-  const handleBackToDashboard = () => {
-    router.push('/dashboard/practice');
-  };
-
-  if (noQuestionsAvailable && unit) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <EmptyQuestionBank
-          unitName={unit.name}
-          unitNumber={unit.unitNumber}
-          onBack={() => router.push('/dashboard/practice')}
-        />
-      </div>
-    );
-  }
-
-  if (isLoading || !isLoaded || !unit) {
+  if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-          <p className="mt-4 text-gray-600">Loading practice session...</p>
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-600" />
+          <p className="mt-2 text-gray-600">Loading practice session...</p>
         </div>
       </div>
     );
@@ -276,113 +303,58 @@ const handleNextQuestion = async () => {
 
   if (error) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <Card className="mx-auto max-w-2xl p-8">
-          <div className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-              <AlertCircle className="h-6 w-6 text-red-600" />
-            </div>
-            <h2 className="mb-2 text-xl font-bold text-gray-900">Error</h2>
-            <p className="mb-6 text-gray-600">{error}</p>
-            <div className="flex justify-center gap-3">
-              <Button onClick={handleBackToDashboard} variant="outline">
-                Back to Dashboard
-              </Button>
-              <Button onClick={handleRetry}>Try Again</Button>
-            </div>
-          </div>
-        </Card>
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <p className="text-red-600">{error}</p>
+          <button
+            onClick={handleRetry}
+            className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+          >
+            Try Again
+          </button>
+        </div>
       </div>
     );
   }
 
-  if (showSettings) {
+  if (sessionSummary) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <SessionSettings
-          unitName={unit.name}
-          onStart={handleStartWithSettings}
-          onCancel={handleBackToDashboard}
-        />
-      </div>
+      <SessionSummary
+        summary={sessionSummary}
+        unit={unit!}
+        onReturnToDashboard={handleReturnToDashboard}
+        onRetry={handleRetry}
+      />
     );
   }
 
-  if (showCompletion && sessionSummary) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <SessionComplete
-          summary={sessionSummary}
-          unitName={unit.name}
-          onRetry={handleRetry}
-          onBackToDashboard={handleBackToDashboard}
-        />
-      </div>
-    );
-  }
-
-  if (!session || !currentQuestion) {
+  if (!currentQuestion) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
-          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-          <p className="mt-4 text-gray-600">Starting session...</p>
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-600" />
+          <p className="mt-2 text-gray-600">Loading question...</p>
         </div>
       </div>
     );
   }
 
+  const questionsRemaining = targetQuestions - (session?.totalQuestions || 0);
+
   return (
-    <div className="min-h-screen bg-gray-50 pb-12">
-      {/* Header */}
-      <div className="border-b bg-white">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Button
-                onClick={handleBackToDashboard}
-                variant="ghost"
-                size="sm"
-                className="gap-2"
-              >
-                <ArrowLeft className="h-4 w-4" />
-                Exit
-              </Button>
-              <div>
-                <h1 className="text-lg font-semibold text-gray-900">
-                  Unit {unit.unitNumber}: {unit.name}
-                </h1>
-                <p className="text-sm text-gray-600">
-                  Question {session.totalQuestions + 1} of {targetQuestions}
-                </p>
-              </div>
-            </div>
-            <Button
-              onClick={handleEndSession}
-              variant="outline"
-              size="sm"
-              className="gap-2"
-            >
-              <X className="h-4 w-4" />
-              End Session
-            </Button>
-          </div>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto max-w-7xl px-4">
+        {/* Header */}
+        <div className="mb-6">
+          <h1 className="text-3xl font-bold text-gray-900">
+            {unit?.name || 'Practice Session'}
+          </h1>
+          <p className="mt-1 text-gray-600">
+            Question {(session?.totalQuestions || 0) + 1} of {targetQuestions}
+          </p>
         </div>
-      </div>
 
-      {/* Progress Bar */}
-      <div className="border-b bg-white">
-        <div className="container mx-auto px-4 py-3">
-          <ProgressBar
-            current={session.totalQuestions}
-            total={targetQuestions}
-            correct={session.correctAnswers}
-          />
-        </div>
-      </div>
-
-      <div className="container mx-auto px-4 py-8">
-        <div className="grid gap-8 lg:grid-cols-3">
+        <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Content */}
           <div className="lg:col-span-2">
             {answerResult ? (
@@ -390,79 +362,25 @@ const handleNextQuestion = async () => {
                 result={answerResult}
                 onNext={handleNextQuestion}
                 isLoading={isLoadingNext}
-                questionsRemaining={targetQuestions - session.totalQuestions}
+                questionsRemaining={questionsRemaining}
               />
             ) : (
               <QuestionCard
                 question={currentQuestion}
                 onSubmit={handleSubmitAnswer}
                 isSubmitting={isSubmitting}
-                questionNumber={session.totalQuestions + 1}
-                totalQuestions={targetQuestions}
               />
             )}
           </div>
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Current Progress */}
-            {progress && (
-              <Card className="p-6">
-                <h3 className="mb-4 text-lg font-semibold text-gray-900">
-                  Session Progress
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Accuracy</span>
-                    <span className="font-semibold text-gray-900">
-                      {session.totalQuestions > 0
-                        ? Math.round(
-                            (session.correctAnswers / session.totalQuestions) * 100
-                          )
-                        : 0}
-                      %
-                    </span>
-                  </div>
-                  <Progress
-                    value={
-                      session.totalQuestions > 0
-                        ? (session.correctAnswers / session.totalQuestions) * 100
-                        : 0
-                    }
-                    className="h-2"
-                  />
-
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Current Difficulty</span>
-                    <span className="font-semibold text-gray-900 capitalize">
-                      {progress.currentDifficulty.toLowerCase()}
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Correct Streak</span>
-                    <span className="font-semibold text-green-600">
-                      {progress.consecutiveCorrect} 🔥
-                    </span>
-                  </div>
-
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Mastery Level</span>
-                    <span className="font-semibold text-purple-600">
-                      {Math.round(progress.masteryLevel)}%
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            )}
-
-            {/* Learning Insights */}
-            {insights && (
-              <LearningInsights
-                insights={insights}
-                currentDifficulty={progress?.currentDifficulty}
-              />
-            )}
+            <SessionProgressCard
+              session={session!}
+              progress={progress || undefined}
+              targetQuestions={targetQuestions}
+            />
+            <LearningInsightsCard progress={progress || undefined} />
           </div>
         </div>
       </div>

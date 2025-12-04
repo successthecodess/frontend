@@ -1,7 +1,7 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // Helper function to handle API errors
-async function handleResponse(response: Response) {
+async function handleResponse(response: Response, context?: string) {
   if (!response.ok) {
     let errorMessage = 'An error occurred';
     
@@ -9,13 +9,19 @@ async function handleResponse(response: Response) {
       const errorData = await response.json();
       errorMessage = errorData.message || errorMessage;
     } catch {
-      // If JSON parsing fails, try to get text
       try {
         errorMessage = await response.text();
-      } catch {
-        // Use default error message
-      }
+      } catch {}
     }
+    
+    // Log detailed error info for debugging
+    console.error('❌ API Error:', {
+      context,
+      status: response.status,
+      statusText: response.statusText,
+      url: response.url,
+      message: errorMessage,
+    });
     
     throw new Error(errorMessage);
   }
@@ -27,17 +33,17 @@ export const api = {
   // Units
   async getUnits() {
     const response = await fetch(`${API_BASE_URL}/units`);
-    return handleResponse(response);
+    return handleResponse(response, 'getUnits');
   },
 
   async getUnit(unitId: string) {
     const response = await fetch(`${API_BASE_URL}/units/${unitId}`);
-    return handleResponse(response);
+    return handleResponse(response, 'getUnit');
   },
 
   async getTopicsByUnit(unitId: string) {
     const response = await fetch(`${API_BASE_URL}/units/${unitId}/topics`);
-    return handleResponse(response);
+    return handleResponse(response, 'getTopicsByUnit');
   },
 
   // Practice
@@ -61,27 +67,34 @@ export const api = {
         targetQuestions,
       }),
     });
-    return handleResponse(response);
+    return handleResponse(response, 'startPracticeSession');
   },
 
   async getNextQuestion(
-    userId: string,
-    sessionId: string,
-    unitId: string,
-    answeredQuestionIds: string[]
-  ) {
-    const response = await fetch(`${API_BASE_URL}/practice/next`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        sessionId,
-        unitId,
-        answeredQuestionIds,
-      }),
-    });
-    return handleResponse(response);
-  },
+  userId: string,
+  sessionId: string,
+  unitId: string,
+  answeredQuestionIds: string[]
+) {
+  console.log('🔄 API: Getting next question', {
+    userId,
+    sessionId,
+    unitId,
+    answeredCount: answeredQuestionIds.length,
+  });
+
+  const response = await fetch(`${API_BASE_URL}/practice/next`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      userId,
+      sessionId,
+      unitId, // CRITICAL: Make sure unitId is sent!
+      answeredQuestionIds,
+    }),
+  });
+  return handleResponse(response, 'getNextQuestion');
+},
 
   async submitAnswer(
     userId: string,
@@ -101,7 +114,7 @@ export const api = {
         timeSpent,
       }),
     });
-    return handleResponse(response);
+    return handleResponse(response, 'submitAnswer');
   },
 
   async endPracticeSession(sessionId: string) {
@@ -109,40 +122,36 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
     });
-    return handleResponse(response);
+    return handleResponse(response, 'endPracticeSession');
   },
 
   // Progress
   async getUserProgress(userId: string, unitId: string) {
     const response = await fetch(`${API_BASE_URL}/progress/${userId}/${unitId}`);
-    return handleResponse(response);
+    return handleResponse(response, 'getUserProgress');
   },
 
   async getLearningInsights(userId: string, unitId: string) {
     const response = await fetch(`${API_BASE_URL}/progress/insights/${userId}/${unitId}`);
-    return handleResponse(response);
+    return handleResponse(response, 'getLearningInsights');
   },
 
   // Admin
   async getAdminStats() {
     const response = await fetch(`${API_BASE_URL}/admin/dashboard/stats`);
-    return handleResponse(response);
-  },
-
-  async getDashboardStats() {
-    const response = await fetch(`${API_BASE_URL}/admin/dashboard/stats`);
-    return handleResponse(response);
+    return handleResponse(response, 'getAdminStats');
   },
 
   async getQuestions(filters?: any) {
     const params = new URLSearchParams(filters);
     const response = await fetch(`${API_BASE_URL}/admin/questions?${params}`);
-    return handleResponse(response);
+    return handleResponse(response, 'getQuestions');
   },
 
   async getQuestion(questionId: string) {
+    console.log('📝 Fetching question:', questionId);
     const response = await fetch(`${API_BASE_URL}/admin/questions/${questionId}`);
-    return handleResponse(response);
+    return handleResponse(response, 'getQuestion');
   },
 
   async createQuestion(data: any) {
@@ -151,7 +160,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return handleResponse(response);
+    return handleResponse(response, 'createQuestion');
   },
 
   async updateQuestion(questionId: string, data: any) {
@@ -160,14 +169,14 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
     });
-    return handleResponse(response);
+    return handleResponse(response, 'updateQuestion');
   },
 
   async deleteQuestion(questionId: string) {
     const response = await fetch(`${API_BASE_URL}/admin/questions/${questionId}`, {
       method: 'DELETE',
     });
-    return handleResponse(response);
+    return handleResponse(response, 'deleteQuestion');
   },
 
   async approveQuestion(questionId: string, approved: boolean) {
@@ -176,7 +185,7 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ approved }),
     });
-    return handleResponse(response);
+    return handleResponse(response, 'approveQuestion');
   },
 
   async bulkUploadQuestions(file: File) {
@@ -187,7 +196,7 @@ export const api = {
       method: 'POST',
       body: formData,
     });
-    return handleResponse(response);
+    return handleResponse(response, 'bulkUploadQuestions');
   },
 
   // Analytics
@@ -197,7 +206,7 @@ export const api = {
     if (timeRange) params.append('timeRange', timeRange);
     
     const response = await fetch(`${API_BASE_URL}/analytics?${params}`);
-    return handleResponse(response);
+    return handleResponse(response, 'getAnalytics');
   },
 
   async downloadAnalyticsReport(unitId?: string, timeRange?: string) {
@@ -206,13 +215,13 @@ export const api = {
     if (timeRange) params.append('timeRange', timeRange);
     
     const response = await fetch(`${API_BASE_URL}/analytics/download?${params}`);
-    return handleResponse(response);
+    return handleResponse(response, 'downloadAnalyticsReport');
   },
 
   // Settings
   async getSettings() {
     const response = await fetch(`${API_BASE_URL}/settings`);
-    return handleResponse(response);
+    return handleResponse(response, 'getSettings');
   },
 
   async updateSettings(settings: any) {
@@ -221,19 +230,19 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
-    return handleResponse(response);
+    return handleResponse(response, 'updateSettings');
   },
 
   async resetSettings() {
     const response = await fetch(`${API_BASE_URL}/settings/reset`, {
       method: 'POST',
     });
-    return handleResponse(response);
+    return handleResponse(response, 'resetSettings');
   },
 
   async exportSettings() {
     const response = await fetch(`${API_BASE_URL}/settings/export`);
-    return handleResponse(response);
+    return handleResponse(response, 'exportSettings');
   },
 
   async importSettings(settings: any) {
@@ -242,6 +251,6 @@ export const api = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(settings),
     });
-    return handleResponse(response);
+    return handleResponse(response, 'importSettings');
   },
 };
