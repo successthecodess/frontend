@@ -16,28 +16,37 @@ interface QuestionCardProps {
   isSubmitting: boolean;
   questionNumber?: number;
   totalQuestions?: number;
+  startTime?: number; 
 }
-export function QuestionCard({ question, onSubmit, isSubmitting }: QuestionCardProps) {
+
+export function QuestionCard({ 
+  question, 
+  onSubmit, 
+  isSubmitting,
+  startTime = Date.now() // Default to current time if not provided
+}: QuestionCardProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [timeSpent, setTimeSpent] = useState(0);
+  const [localStartTime] = useState(startTime);
 
   useEffect(() => {
     setSelectedAnswer('');
-    setTimeSpent(0);
     
+    // Update time display every second
     const interval = setInterval(() => {
-      setTimeSpent(prev => prev + 1);
+      const elapsed = Math.floor((Date.now() - localStartTime) / 1000);
+      setTimeSpent(elapsed);
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [question.id]);
+  }, [question.id, localStartTime]);
 
   const handleSubmit = () => {
     if (selectedAnswer) {
-      onSubmit(selectedAnswer, timeSpent);
+      const finalTimeSpent = Math.floor((Date.now() - localStartTime) / 1000);
+      onSubmit(selectedAnswer, finalTimeSpent);
     }
   };
-  
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);

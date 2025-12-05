@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useUser } from '@clerk/nextjs';
 import { api } from '@/lib/api';
@@ -9,7 +9,9 @@ import { FeedbackCard } from '@/components/practice/FeedbackCard';
 import { SessionProgressCard } from '@/components/practice/SessionProgressCard';
 import { LearningInsightsCard } from '@/components/practice/LearningInsightsCard';
 import { SessionSummary } from '@/components/practice/SessionSummary';
-import { Loader2 } from 'lucide-react';
+import { LoadingState } from '@/components/LoadingState';
+import { ErrorDisplay } from '@/components/ErrorDisplay';
+import { Clock, AlertTriangle } from 'lucide-react';
 import type { Unit, Question, StudySession, AnswerResult, ProgressMetrics } from '@/types';
 
 export default function PracticePage() {
@@ -30,6 +32,13 @@ export default function PracticePage() {
   const [error, setError] = useState<string | null>(null);
   const [sessionSummary, setSessionSummary] = useState<any>(null);
   const [targetQuestions, setTargetQuestions] = useState(10);
+  
+  // Timer states
+  const [isTimedMode, setIsTimedMode] = useState(false);
+  const [timePerQuestion, setTimePerQuestion] = useState(90);
+  const [timeRemaining, setTimeRemaining] = useState(90);
+  const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
+  const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Load session from localStorage or create new one
   useEffect(() => {
@@ -40,13 +49,28 @@ export default function PracticePage() {
         setLoading(true);
         setError(null);
 
-        // Get target questions from query params or localStorage
+        // Get settings from query params or localStorage
         const urlParams = new URLSearchParams(window.location.search);
         const questionsParam = urlParams.get('questions');
+        const timedParam = urlParams.get('timed');
+        const timeParam = urlParams.get('timePerQuestion');
+        
         const storedTarget = localStorage.getItem('targetQuestions');
+        const storedTimed = localStorage.getItem('isTimedMode');
+        const storedTime = localStorage.getItem('timePerQuestion');
+
         const target = questionsParam ? parseInt(questionsParam) : (storedTarget ? parseInt(storedTarget) : 10);
+        const timed = timedParam ? timedParam === 'true' : (storedTimed === 'true');
+        const time = timeParam ? parseInt(timeParam) : (storedTime ? parseInt(storedTime) : 90);
+
         setTargetQuestions(target);
+        setIsTimedMode(timed);
+        setTimePerQuestion(time);
+        setTimeRemaining(time);
+
         localStorage.setItem('targetQuestions', target.toString());
+        localStorage.setItem('isTimedMode', timed.toString());
+        localStorage.setItem('timePerQuestion', time.toString());
 
         // Load unit data
         const unitResponse = await api.getUnit(unitId);
@@ -56,16 +80,13 @@ export default function PracticePage() {
         const storedSessionId = localStorage.getItem(`session_${unitId}`);
         
         if (storedSessionId) {
-          // Try to resume session
           try {
             const sessionData = JSON.parse(localStorage.getItem(`sessionData_${unitId}`) || '{}');
             setSession(sessionData.session);
             setAnsweredQuestions(sessionData.answeredQuestions || []);
             
-            // Load progress
             await loadProgress();
             
-            // Get next question
             const questionResponse = await api.getNextQuestion(
               user.id,
               storedSessionId,
@@ -76,8 +97,11 @@ export default function PracticePage() {
             if (questionResponse.data.question) {
               console.log('📝 Loaded question:', questionResponse.data.question.difficulty);
               setCurrentQuestion(questionResponse.data.question);
+              setQuestionStartTime(Date.now());
+              if (timed) {
+                setTimeRemaining(time);
+              }
             } else {
-              // Session complete
               await loadSessionSummary();
             }
           } catch (error) {
@@ -87,19 +111,66 @@ export default function PracticePage() {
             await startNewSession(target);
           }
         } else {
-          // Start new session
           await startNewSession(target);
         }
       } catch (error: any) {
         console.error('Failed to initialize session:', error);
-        setError(error.message || 'Failed to start practice session');
+        setError(
+          error.message || 
+          'Failed to start practice session. Please check your connection and try again.'
+        );
       } finally {
         setLoading(false);
       }
     };
 
     initializeSession();
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
   }, [user, unitId]);
+
+  // Timer countdown effect
+  useEffect(() => {
+    if (!isTimedMode || answerResult || !currentQuestion) {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+      return;
+    }
+
+    timerRef.current = setInterval(() => {
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          handleTimeUp();
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => {
+      if (timerRef.current) {
+        clearInterval(timerRef.current);
+      }
+    };
+  }, [isTimedMode, answerResult, currentQuestion]);
+
+  const handleTimeUp = async () => {
+    if (!session || !currentQuestion || !user || isSubmitting) return;
+
+    console.log('⏰ Time is up! Auto-submitting...');
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+
+    const timeSpent = Math.floor((Date.now() - questionStartTime) / 1000);
+    await handleSubmitAnswer('', timeSpent);
+  };
 
   const startNewSession = async (target: number) => {
     if (!user) return;
@@ -119,12 +190,12 @@ export default function PracticePage() {
 
       setSession(response.data.session);
       setCurrentQuestion(response.data.question);
+      setQuestionStartTime(Date.now());
       
       if (response.data.progress) {
         setProgress(response.data.progress);
       }
 
-      // Store session ID
       localStorage.setItem(`session_${unitId}`, response.data.session.id);
       localStorage.setItem(`sessionData_${unitId}`, JSON.stringify({
         session: response.data.session,
@@ -166,6 +237,12 @@ export default function PracticePage() {
     if (!session || !currentQuestion || !user) return;
 
     setIsSubmitting(true);
+    setError(null);
+    
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+    }
+    
     try {
       console.log('📝 Submitting answer for question:', currentQuestion.difficulty);
       
@@ -183,86 +260,89 @@ export default function PracticePage() {
       setAnswerResult(response.data);
       setAnsweredQuestions([...answeredQuestions, currentQuestion.id]);
 
-      // Update progress from backend response
       if (response.data.progress) {
         setProgress(response.data.progress);
       }
 
-      // Update session stats from backend response
       if (response.data.session) {
         setSession(response.data.session);
         
-        // Save to localStorage
         localStorage.setItem(`sessionData_${unitId}`, JSON.stringify({
           session: response.data.session,
           answeredQuestions: [...answeredQuestions, currentQuestion.id],
         }));
       }
 
-      // Reload insights after answer
       loadInsights();
     } catch (error: any) {
       console.error('Failed to submit answer:', error);
-      setError(error.message || 'Failed to submit answer');
+      setError(
+        error.message || 
+        'Failed to submit your answer. Please check your connection and try again.'
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
-const handleNextQuestion = async () => {
-  if (!session || !user) return;
+  const handleNextQuestion = async () => {
+    if (!session || !user) return;
 
-  // Check if session is complete BEFORE trying to get next question
-  if (session.totalQuestions >= targetQuestions) {
-    console.log('🎉 Session complete! Loading summary...');
-    await loadSessionSummary();
-    return;
-  }
-
-  try {
-    setIsLoadingNext(true);
-    setAnswerResult(null);
-    setError(null);
-    
-    console.log('🔄 Getting next question...');
-    console.log('📊 Unit ID:', unitId); // Use unitId from params, NOT unit.id
-    console.log('📊 Current student level:', progress?.currentDifficulty);
-    
-    const response = await api.getNextQuestion(
-      user.id,
-      session.id,
-      unitId, // CRITICAL: Use unitId from params!
-      answeredQuestions
-    );
-
-    if (!response.data.question) {
-      console.log('🎉 No more questions! Session complete.');
+    if (session.totalQuestions >= targetQuestions) {
+      console.log('🎉 Session complete! Loading summary...');
       await loadSessionSummary();
       return;
     }
 
-    console.log('📝 Next question loaded:', response.data.question.difficulty);
-    console.log('📊 Should match student level:', progress?.currentDifficulty);
+    try {
+      setIsLoadingNext(true);
+      setAnswerResult(null);
+      setError(null);
+      
+      console.log('🔄 Getting next question...');
+      
+      const response = await api.getNextQuestion(
+        user.id,
+        session.id,
+        unitId,
+        answeredQuestions
+      );
 
-    setCurrentQuestion(response.data.question);
-    
-    // Reload progress to get updated difficulty
-    await loadProgress();
-  } catch (error: any) {
-    console.error('Failed to get next question:', error);
-    
-    if (error.message?.includes('completed all') || 
-        error.message?.includes('No more questions available') ||
-        error.message?.includes('Session complete')) {
-      console.log('🎉 Session complete via error message');
-      await loadSessionSummary();
-    } else {
-      setError(error.message || 'Failed to get next question');
+      if (!response.data.question) {
+        console.log('🎉 No more questions! Session complete.');
+        await loadSessionSummary();
+        return;
+      }
+
+      console.log('📝 Next question loaded:', response.data.question.difficulty);
+
+      setCurrentQuestion(response.data.question);
+      setQuestionStartTime(Date.now());
+      
+      if (isTimedMode) {
+        setTimeRemaining(timePerQuestion);
+      }
+      
+      await loadProgress();
+    } catch (error: any) {
+      console.error('Failed to get next question:', error);
+      
+      if (error.message?.includes('completed all') || 
+          error.message?.includes('No more questions available') ||
+          error.message?.includes('Session complete')) {
+        console.log('🎉 Session complete via error message');
+        await loadSessionSummary();
+      } else {
+        setError(
+          error.message || 
+          'Failed to load next question. Please check your connection and try again.'
+        );
+      }
+    } finally {
+      setIsLoadingNext(false);
     }
-  } finally {
-    setIsLoadingNext(false);
-  }
-};
+  };
+
   const loadSessionSummary = async () => {
     if (!session) return;
 
@@ -270,12 +350,14 @@ const handleNextQuestion = async () => {
       const response = await api.endPracticeSession(session.id);
       setSessionSummary(response.data.summary);
       
-      // Clear localStorage
       localStorage.removeItem(`session_${unitId}`);
       localStorage.removeItem(`sessionData_${unitId}`);
     } catch (error: any) {
       console.error('Failed to load session summary:', error);
-      setError(error.message || 'Failed to load session summary');
+      setError(
+        error.message || 
+        'Failed to load session summary. Please try again.'
+      );
     }
   };
 
@@ -284,36 +366,32 @@ const handleNextQuestion = async () => {
   };
 
   const handleRetry = () => {
-    // Clear state and localStorage
+    setError(null);
+    setLoading(true);
     localStorage.removeItem(`session_${unitId}`);
     localStorage.removeItem(`sessionData_${unitId}`);
-    router.refresh();
+    window.location.reload();
+  };
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-600" />
-          <p className="mt-2 text-gray-600">Loading practice session...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState message="Loading practice session..." fullScreen />;
   }
 
-  if (error) {
+  if (error && !currentQuestion) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <p className="text-red-600">{error}</p>
-          <button
-            onClick={handleRetry}
-            className="mt-4 rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
-          >
-            Try Again
-          </button>
-        </div>
-      </div>
+      <ErrorDisplay
+        title="Unable to load practice session"
+        message={error}
+        onRetry={handleRetry}
+        onGoHome={handleReturnToDashboard}
+        fullScreen
+      />
     );
   }
 
@@ -329,30 +407,99 @@ const handleNextQuestion = async () => {
   }
 
   if (!currentQuestion) {
-    return (
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-indigo-600" />
-          <p className="mt-2 text-gray-600">Loading question...</p>
-        </div>
-      </div>
-    );
+    return <LoadingState message="Loading question..." fullScreen />;
   }
 
   const questionsRemaining = targetQuestions - (session?.totalQuestions || 0);
+  const isTimeLow = timeRemaining <= 30;
+  const isTimeCritical = timeRemaining <= 10;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto max-w-7xl px-4">
         {/* Header */}
-        <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900">
-            {unit?.name || 'Practice Session'}
-          </h1>
-          <p className="mt-1 text-gray-600">
-            Question {(session?.totalQuestions || 0) + 1} of {targetQuestions}
-          </p>
+        <div className="mb-6 flex items-center justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold text-gray-900">
+              {unit?.name || 'Practice Session'}
+            </h1>
+            <p className="mt-1 text-gray-600">
+              Question {(session?.totalQuestions || 0) + 1} of {targetQuestions}
+              {isTimedMode && ' • Timed Mode'}
+            </p>
+          </div>
+          
+          {/* Timer Display */}
+          {isTimedMode && !answerResult && (
+            <div className={`flex items-center gap-3 rounded-lg px-6 py-3 ${
+              isTimeCritical 
+                ? 'bg-red-100 border-2 border-red-500 animate-pulse' 
+                : isTimeLow 
+                ? 'bg-yellow-100 border-2 border-yellow-500' 
+                : 'bg-blue-100 border-2 border-blue-500'
+            }`}>
+              <Clock className={`h-6 w-6 ${
+                isTimeCritical ? 'text-red-600' : isTimeLow ? 'text-yellow-600' : 'text-blue-600'
+              }`} />
+              <div>
+                <p className={`text-2xl font-bold ${
+                  isTimeCritical ? 'text-red-900' : isTimeLow ? 'text-yellow-900' : 'text-blue-900'
+                }`}>
+                  {formatTime(timeRemaining)}
+                </p>
+                <p className={`text-xs ${
+                  isTimeCritical ? 'text-red-700' : isTimeLow ? 'text-yellow-700' : 'text-blue-700'
+                }`}>
+                  {isTimeCritical ? 'Hurry!' : isTimeLow ? 'Time running out' : 'Time remaining'}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Warning banner for time running out */}
+        {isTimedMode && isTimeLow && !answerResult && (
+          <div className={`mb-6 rounded-lg p-4 ${
+            isTimeCritical ? 'bg-red-50 border border-red-200' : 'bg-yellow-50 border border-yellow-200'
+          }`}>
+            <div className="flex items-center gap-3">
+              <AlertTriangle className={`h-5 w-5 ${
+                isTimeCritical ? 'text-red-600' : 'text-yellow-600'
+              }`} />
+              <p className={`text-sm font-medium ${
+                isTimeCritical ? 'text-red-900' : 'text-yellow-900'
+              }`}>
+                {isTimeCritical 
+                  ? '⚠️ Less than 10 seconds left! Answer will auto-submit at 0:00' 
+                  : '⏰ Less than 30 seconds remaining'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        {/* Error banner */}
+        {error && currentQuestion && (
+          <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-red-600" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800">{error}</p>
+              </div>
+              <button
+                onClick={() => setError(null)}
+                className="flex-shrink-0 text-red-600 hover:text-red-800"
+              >
+                <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                </svg>
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="grid gap-6 lg:grid-cols-3">
           {/* Main Content */}
@@ -369,6 +516,7 @@ const handleNextQuestion = async () => {
                 question={currentQuestion}
                 onSubmit={handleSubmitAnswer}
                 isSubmitting={isSubmitting}
+                startTime={questionStartTime}
               />
             )}
           </div>

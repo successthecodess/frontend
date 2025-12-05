@@ -1,13 +1,7 @@
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { ClerkProvider } from '@clerk/nextjs';
-import { Inter } from 'next/font/google';
 import './globals.css';
-
-const inter = Inter({ subsets: ['latin'] });
-
-export const metadata = {
-  title: 'AP CS Question Bank',
-  description: 'Master AP Computer Science A with adaptive learning',
-};
+import { NetworkStatus } from '@/components/NetworkStatus';
 
 export default function RootLayout({
   children,
@@ -17,7 +11,12 @@ export default function RootLayout({
   return (
     <ClerkProvider>
       <html lang="en">
-        <body className={inter.className}>{children}</body>
+        <body>
+          <ErrorBoundary>
+            <NetworkStatus/>
+            {children}
+          </ErrorBoundary>
+        </body>
       </html>
     </ClerkProvider>
   );

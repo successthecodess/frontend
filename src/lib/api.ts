@@ -1,49 +1,167 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
-// Helper function to handle API errors
-async function handleResponse(response: Response, context?: string) {
-  if (!response.ok) {
-    let errorMessage = 'An error occurred';
-    
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.message || errorMessage;
-    } catch {
-      try {
-        errorMessage = await response.text();
-      } catch {}
-    }
-    
-    // Log detailed error info for debugging
-    console.error('❌ API Error:', {
-      context,
-      status: response.status,
-      statusText: response.statusText,
-      url: response.url,
-      message: errorMessage,
-    });
-    
-    throw new Error(errorMessage);
+// Retry configuration
+const MAX_RETRIES = 3;
+const RETRY_DELAY = 1000; // 1 second
+const TIMEOUT = 30000; // 30 seconds
+
+// Custom error class
+class APIError extends Error {
+  constructor(
+    message: string,
+    public statusCode?: number,
+    public context?: string
+  ) {
+    super(message);
+    this.name = 'APIError';
+  }
+}
+
+// Sleep utility for retries
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+// Check if error is retryable
+function isRetryableError(error: any, statusCode?: number): boolean {
+  // Network errors
+  if (error instanceof TypeError && error.message.includes('fetch')) {
+    return true;
   }
   
-  return response.json();
+  // 5xx server errors (except 501 Not Implemented)
+  if (statusCode && statusCode >= 500 && statusCode !== 501) {
+    return true;
+  }
+  
+  // 429 Too Many Requests
+  if (statusCode === 429) {
+    return true;
+  }
+  
+  // Timeout errors
+  if (error.name === 'AbortError') {
+    return true;
+  }
+  
+  return false;
+}
+
+// Enhanced fetch with timeout
+async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = TIMEOUT) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  
+  try {
+    const response = await fetch(url, {
+      ...options,
+      signal: controller.signal,
+    });
+    clearTimeout(id);
+    return response;
+  } catch (error) {
+    clearTimeout(id);
+    throw error;
+  }
+}
+
+// Enhanced response handler with retries
+async function handleResponse(
+  url: string,
+  options: RequestInit = {},
+  context?: string,
+  retryCount = 0
+): Promise<any> {
+  try {
+    const response = await fetchWithTimeout(url, options);
+    
+    if (!response.ok) {
+      let errorMessage = 'An error occurred';
+      let errorData: any = null;
+      
+      try {
+        errorData = await response.json();
+        errorMessage = errorData.message || errorData.error || errorMessage;
+      } catch {
+        try {
+          errorMessage = await response.text();
+        } catch {}
+      }
+      
+      // Check if we should retry
+      if (isRetryableError(null, response.status) && retryCount < MAX_RETRIES) {
+        console.warn(`⚠️ API Error (attempt ${retryCount + 1}/${MAX_RETRIES}):`, {
+          context,
+          status: response.status,
+          url,
+        });
+        
+        // Wait before retrying (exponential backoff)
+        await sleep(RETRY_DELAY * Math.pow(2, retryCount));
+        return handleResponse(url, options, context, retryCount + 1);
+      }
+      
+      // Log error for debugging
+      console.error('❌ API Error:', {
+        context,
+        status: response.status,
+        statusText: response.statusText,
+        url,
+        message: errorMessage,
+        data: errorData,
+      });
+      
+      throw new APIError(errorMessage, response.status, context);
+    }
+    
+    return response.json();
+  } catch (error: any) {
+    // Network error or timeout - retry if possible
+    if (isRetryableError(error) && retryCount < MAX_RETRIES) {
+      console.warn(`⚠️ Network Error (attempt ${retryCount + 1}/${MAX_RETRIES}):`, {
+        context,
+        error: error.message,
+        url,
+      });
+      
+      await sleep(RETRY_DELAY * Math.pow(2, retryCount));
+      return handleResponse(url, options, context, retryCount + 1);
+    }
+    
+    // Final failure
+    console.error('❌ Request Failed:', {
+      context,
+      error: error.message,
+      url,
+      retries: retryCount,
+    });
+    
+    // User-friendly error messages
+    if (error.name === 'AbortError') {
+      throw new APIError('Request timed out. Please check your connection and try again.', undefined, context);
+    }
+    
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new APIError('Unable to connect to server. Please check your internet connection.', undefined, context);
+    }
+    
+    throw error;
+  }
 }
 
 export const api = {
   // Units
   async getUnits() {
-    const response = await fetch(`${API_BASE_URL}/units`);
-    return handleResponse(response, 'getUnits');
+    const url = `${API_BASE_URL}/units`;
+    return handleResponse(url, {}, 'getUnits');
   },
 
   async getUnit(unitId: string) {
-    const response = await fetch(`${API_BASE_URL}/units/${unitId}`);
-    return handleResponse(response, 'getUnit');
+    const url = `${API_BASE_URL}/units/${unitId}`;
+    return handleResponse(url, {}, 'getUnit');
   },
 
   async getTopicsByUnit(unitId: string) {
-    const response = await fetch(`${API_BASE_URL}/units/${unitId}/topics`);
-    return handleResponse(response, 'getTopicsByUnit');
+    const url = `${API_BASE_URL}/units/${unitId}/topics`;
+    return handleResponse(url, {}, 'getTopicsByUnit');
   },
 
   // Practice
@@ -55,46 +173,78 @@ export const api = {
     userName?: string,
     targetQuestions?: number
   ) {
-    const response = await fetch(`${API_BASE_URL}/practice/start`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        unitId,
-        topicId,
-        userEmail,
-        userName,
-        targetQuestions,
-      }),
-    });
-    return handleResponse(response, 'startPracticeSession');
+    const url = `${API_BASE_URL}/practice/start`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          unitId,
+          topicId,
+          userEmail,
+          userName,
+          targetQuestions,
+        }),
+      },
+      'startPracticeSession'
+    );
   },
+// Add these to your existing api object:
 
+// Dashboard
+async getDashboardOverview(userId: string) {
+  const url = `${API_BASE_URL}/progress/dashboard/${userId}/overview`;
+  return handleResponse(url, {}, 'getDashboardOverview');
+},
+
+async getPerformanceHistory(userId: string, days = 30, unitId?: string) {
+  const params = new URLSearchParams({ days: days.toString() });
+  if (unitId) params.append('unitId', unitId);
+  
+  const url = `${API_BASE_URL}/progress/dashboard/${userId}/performance-history?${params}`;
+  return handleResponse(url, {}, 'getPerformanceHistory');
+},
+
+async getStreaks(userId: string) {
+  const url = `${API_BASE_URL}/progress/dashboard/${userId}/streaks`;
+  return handleResponse(url, {}, 'getStreaks');
+},
+
+async getAchievements(userId: string) {
+  const url = `${API_BASE_URL}/progress/dashboard/${userId}/achievements`;
+  return handleResponse(url, {}, 'getAchievements');
+},
   async getNextQuestion(
-  userId: string,
-  sessionId: string,
-  unitId: string,
-  answeredQuestionIds: string[]
-) {
-  console.log('🔄 API: Getting next question', {
-    userId,
-    sessionId,
-    unitId,
-    answeredCount: answeredQuestionIds.length,
-  });
-
-  const response = await fetch(`${API_BASE_URL}/practice/next`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
+    userId: string,
+    sessionId: string,
+    unitId: string,
+    answeredQuestionIds: string[]
+  ) {
+    console.log('🔄 API: Getting next question', {
       userId,
       sessionId,
-      unitId, // CRITICAL: Make sure unitId is sent!
-      answeredQuestionIds,
-    }),
-  });
-  return handleResponse(response, 'getNextQuestion');
-},
+      unitId,
+      answeredCount: answeredQuestionIds.length,
+    });
+
+    const url = `${API_BASE_URL}/practice/next`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          sessionId,
+          unitId,
+          answeredQuestionIds,
+        }),
+      },
+      'getNextQuestion'
+    );
+  },
 
   async submitAnswer(
     userId: string,
@@ -103,100 +253,128 @@ export const api = {
     userAnswer: string,
     timeSpent: number
   ) {
-    const response = await fetch(`${API_BASE_URL}/practice/submit`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        userId,
-        sessionId,
-        questionId,
-        userAnswer,
-        timeSpent,
-      }),
-    });
-    return handleResponse(response, 'submitAnswer');
+    const url = `${API_BASE_URL}/practice/submit`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          sessionId,
+          questionId,
+          userAnswer,
+          timeSpent,
+        }),
+      },
+      'submitAnswer'
+    );
   },
 
   async endPracticeSession(sessionId: string) {
-    const response = await fetch(`${API_BASE_URL}/practice/end/${sessionId}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-    });
-    return handleResponse(response, 'endPracticeSession');
+    const url = `${API_BASE_URL}/practice/end/${sessionId}`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      },
+      'endPracticeSession'
+    );
   },
 
   // Progress
   async getUserProgress(userId: string, unitId: string) {
-    const response = await fetch(`${API_BASE_URL}/progress/${userId}/${unitId}`);
-    return handleResponse(response, 'getUserProgress');
+    const url = `${API_BASE_URL}/progress/${userId}/${unitId}`;
+    return handleResponse(url, {}, 'getUserProgress');
   },
 
   async getLearningInsights(userId: string, unitId: string) {
-    const response = await fetch(`${API_BASE_URL}/progress/insights/${userId}/${unitId}`);
-    return handleResponse(response, 'getLearningInsights');
+    const url = `${API_BASE_URL}/progress/insights/${userId}/${unitId}`;
+    return handleResponse(url, {}, 'getLearningInsights');
   },
 
   // Admin
   async getAdminStats() {
-    const response = await fetch(`${API_BASE_URL}/admin/dashboard/stats`);
-    return handleResponse(response, 'getAdminStats');
+    const url = `${API_BASE_URL}/admin/dashboard/stats`;
+    return handleResponse(url, {}, 'getAdminStats');
   },
 
   async getQuestions(filters?: any) {
     const params = new URLSearchParams(filters);
-    const response = await fetch(`${API_BASE_URL}/admin/questions?${params}`);
-    return handleResponse(response, 'getQuestions');
+    const url = `${API_BASE_URL}/admin/questions?${params}`;
+    return handleResponse(url, {}, 'getQuestions');
   },
 
   async getQuestion(questionId: string) {
     console.log('📝 Fetching question:', questionId);
-    const response = await fetch(`${API_BASE_URL}/admin/questions/${questionId}`);
-    return handleResponse(response, 'getQuestion');
+    const url = `${API_BASE_URL}/admin/questions/${questionId}`;
+    return handleResponse(url, {}, 'getQuestion');
   },
 
   async createQuestion(data: any) {
-    const response = await fetch(`${API_BASE_URL}/admin/questions`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return handleResponse(response, 'createQuestion');
+    const url = `${API_BASE_URL}/admin/questions`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      },
+      'createQuestion'
+    );
   },
 
   async updateQuestion(questionId: string, data: any) {
-    const response = await fetch(`${API_BASE_URL}/admin/questions/${questionId}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data),
-    });
-    return handleResponse(response, 'updateQuestion');
+    const url = `${API_BASE_URL}/admin/questions/${questionId}`;
+    return handleResponse(
+      url,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      },
+      'updateQuestion'
+    );
   },
 
   async deleteQuestion(questionId: string) {
-    const response = await fetch(`${API_BASE_URL}/admin/questions/${questionId}`, {
-      method: 'DELETE',
-    });
-    return handleResponse(response, 'deleteQuestion');
+    const url = `${API_BASE_URL}/admin/questions/${questionId}`;
+    return handleResponse(
+      url,
+      {
+        method: 'DELETE',
+      },
+      'deleteQuestion'
+    );
   },
 
   async approveQuestion(questionId: string, approved: boolean) {
-    const response = await fetch(`${API_BASE_URL}/admin/questions/${questionId}/approve`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ approved }),
-    });
-    return handleResponse(response, 'approveQuestion');
+    const url = `${API_BASE_URL}/admin/questions/${questionId}/approve`;
+    return handleResponse(
+      url,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approved }),
+      },
+      'approveQuestion'
+    );
   },
 
   async bulkUploadQuestions(file: File) {
     const formData = new FormData();
     formData.append('file', file);
     
-    const response = await fetch(`${API_BASE_URL}/admin/questions/bulk-upload`, {
-      method: 'POST',
-      body: formData,
-    });
-    return handleResponse(response, 'bulkUploadQuestions');
+    const url = `${API_BASE_URL}/admin/questions/bulk-upload`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        body: formData,
+      },
+      'bulkUploadQuestions'
+    );
   },
 
   // Analytics
@@ -205,8 +383,8 @@ export const api = {
     if (unitId) params.append('unitId', unitId);
     if (timeRange) params.append('timeRange', timeRange);
     
-    const response = await fetch(`${API_BASE_URL}/analytics?${params}`);
-    return handleResponse(response, 'getAnalytics');
+    const url = `${API_BASE_URL}/analytics?${params}`;
+    return handleResponse(url, {}, 'getAnalytics');
   },
 
   async downloadAnalyticsReport(unitId?: string, timeRange?: string) {
@@ -214,43 +392,55 @@ export const api = {
     if (unitId) params.append('unitId', unitId);
     if (timeRange) params.append('timeRange', timeRange);
     
-    const response = await fetch(`${API_BASE_URL}/analytics/download?${params}`);
-    return handleResponse(response, 'downloadAnalyticsReport');
+    const url = `${API_BASE_URL}/analytics/download?${params}`;
+    return handleResponse(url, {}, 'downloadAnalyticsReport');
   },
 
   // Settings
   async getSettings() {
-    const response = await fetch(`${API_BASE_URL}/settings`);
-    return handleResponse(response, 'getSettings');
+    const url = `${API_BASE_URL}/settings`;
+    return handleResponse(url, {}, 'getSettings');
   },
 
   async updateSettings(settings: any) {
-    const response = await fetch(`${API_BASE_URL}/settings`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
-    });
-    return handleResponse(response, 'updateSettings');
+    const url = `${API_BASE_URL}/settings`;
+    return handleResponse(
+      url,
+      {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      },
+      'updateSettings'
+    );
   },
 
   async resetSettings() {
-    const response = await fetch(`${API_BASE_URL}/settings/reset`, {
-      method: 'POST',
-    });
-    return handleResponse(response, 'resetSettings');
+    const url = `${API_BASE_URL}/settings/reset`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+      },
+      'resetSettings'
+    );
   },
 
   async exportSettings() {
-    const response = await fetch(`${API_BASE_URL}/settings/export`);
-    return handleResponse(response, 'exportSettings');
+    const url = `${API_BASE_URL}/settings/export`;
+    return handleResponse(url, {}, 'exportSettings');
   },
 
   async importSettings(settings: any) {
-    const response = await fetch(`${API_BASE_URL}/settings/import`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(settings),
-    });
-    return handleResponse(response, 'importSettings');
+    const url = `${API_BASE_URL}/settings/import`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings),
+      },
+      'importSettings'
+    );
   },
 };

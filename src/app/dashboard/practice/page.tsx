@@ -7,12 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
   BookOpen, 
-  TrendingUp, 
   Target, 
-  Award,
   AlertCircle,
   FileQuestion,
-  Lock
+  Lock,
+  Clock,
+  Zap
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
@@ -31,6 +31,11 @@ export default function PracticePage() {
   const router = useRouter();
   const [units, setUnits] = useState<Unit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [questionCount, setQuestionCount] = useState(10);
+  const [isTimedMode, setIsTimedMode] = useState(false);
+  const [timePerQuestion, setTimePerQuestion] = useState(90);
+  const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
     loadUnits();
@@ -49,9 +54,28 @@ export default function PracticePage() {
 
   const handleStartPractice = (unitId: string, hasQuestions: boolean) => {
     if (!hasQuestions) {
-      return; // Prevent navigation for units without questions
+      return;
     }
-    router.push(`/dashboard/practice/${unitId}`);
+    setSelectedUnit(unitId);
+    setShowModal(true);
+  };
+
+  const handleConfirmStart = () => {
+    if (!selectedUnit) return;
+    
+    // Save settings to localStorage
+    localStorage.setItem('targetQuestions', questionCount.toString());
+    localStorage.setItem('isTimedMode', isTimedMode.toString());
+    localStorage.setItem('timePerQuestion', timePerQuestion.toString());
+    
+    // Navigate with query params
+    const params = new URLSearchParams({
+      questions: questionCount.toString(),
+      timed: isTimedMode.toString(),
+      timePerQuestion: timePerQuestion.toString(),
+    });
+    
+    router.push(`/dashboard/practice/${selectedUnit}?${params}`);
   };
 
   if (isLoading) {
@@ -65,8 +89,146 @@ export default function PracticePage() {
     );
   }
 
+  const selectedUnitData = units.find(u => u.id === selectedUnit);
+
   return (
     <div className="space-y-8">
+      {/* Modal for Question Count & Timer Selection */}
+      {showModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <Card className="w-full max-w-md p-6">
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              Start Practice Session
+            </h3>
+            <p className="text-sm text-gray-600 mb-6">
+              {selectedUnitData?.name}
+            </p>
+
+            <div className="space-y-6">
+              {/* Question Count */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  How many questions?
+                </label>
+                <div className="grid grid-cols-5 gap-2">
+                  {[5, 10, 15, 20, 25].map((count) => (
+                    <button
+                      key={count}
+                      onClick={() => setQuestionCount(count)}
+                      className={`rounded-lg py-2 px-3 text-sm font-medium transition-colors ${
+                        questionCount === count
+                          ? 'bg-indigo-600 text-white'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {count}
+                    </button>
+                  ))}
+                </div>
+                
+                {/* Custom input */}
+                <div className="mt-3">
+                  <label className="block text-xs text-gray-600 mb-1">
+                    Or enter custom amount:
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="100"
+                    value={questionCount}
+                    onChange={(e) => setQuestionCount(parseInt(e.target.value) || 10)}
+                    className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Timed Mode Toggle */}
+              <div className="border-t pt-6">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Clock className="h-5 w-5 text-gray-600" />
+                    <label className="text-sm font-medium text-gray-700">
+                      Timed Mode
+                    </label>
+                  </div>
+                  <button
+                    onClick={() => setIsTimedMode(!isTimedMode)}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      isTimedMode ? 'bg-indigo-600' : 'bg-gray-300'
+                    }`}
+                  >
+                    <span
+                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                        isTimedMode ? 'translate-x-6' : 'translate-x-1'
+                      }`}
+                    />
+                  </button>
+                </div>
+                
+                {isTimedMode && (
+                  <div className="mt-4 space-y-3 rounded-lg bg-indigo-50 p-4">
+                    <label className="block text-sm font-medium text-gray-700">
+                      Time per question (seconds)
+                    </label>
+                    <div className="grid grid-cols-4 gap-2">
+                      {[60, 90, 120, 180].map((time) => (
+                        <button
+                          key={time}
+                          onClick={() => setTimePerQuestion(time)}
+                          className={`rounded-lg py-2 px-2 text-xs font-medium transition-colors ${
+                            timePerQuestion === time
+                              ? 'bg-indigo-600 text-white'
+                              : 'bg-white text-gray-700 hover:bg-gray-100'
+                          }`}
+                        >
+                          {time}s
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-start gap-2 mt-3">
+                      <Zap className="h-4 w-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+                      <p className="text-xs text-indigo-700">
+                        Practice under exam conditions! Timer will count down for each question.
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  className="flex-1"
+                  onClick={() => {
+                    setShowModal(false);
+                    setSelectedUnit(null);
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  className="flex-1 gap-2"
+                  onClick={handleConfirmStart}
+                >
+                  {isTimedMode ? (
+                    <>
+                      <Clock className="h-4 w-4" />
+                      Start Timed
+                    </>
+                  ) : (
+                    <>
+                      <Target className="h-4 w-4" />
+                      Start Practice
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
+
       {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-gray-900">Practice by Unit</h1>
@@ -87,8 +249,8 @@ export default function PracticePage() {
             </h3>
             <p className="mt-1 text-sm text-blue-700">
               Questions adapt to your performance. The system tracks your progress
-              and adjusts difficulty to maximize learning. Answer correctly to
-              advance to harder questions!
+              and adjusts difficulty to maximize learning. Choose timed mode to
+              practice under exam conditions!
             </p>
           </div>
         </div>
@@ -110,13 +272,11 @@ export default function PracticePage() {
               }`}
               onClick={() => handleStartPractice(unit.id, hasQuestions)}
             >
-              {/* Unit Header with Color */}
               <div
                 className={`h-2 ${hasQuestions ? unit.color : 'bg-gray-300'}`}
               />
 
               <div className="p-6">
-                {/* Unit Number and Icon */}
                 <div className="mb-4 flex items-start justify-between">
                   <div>
                     <div className="mb-2 flex items-center gap-2">
@@ -150,12 +310,10 @@ export default function PracticePage() {
                   </div>
                 </div>
 
-                {/* Unit Description */}
                 <p className="mb-4 text-sm text-gray-600 line-clamp-2">
                   {unit.description}
                 </p>
 
-                {/* Question Count or Message */}
                 {hasQuestions ? (
                   <div className="mb-4 flex items-center gap-2 text-sm text-gray-600">
                     <FileQuestion className="h-4 w-4" />
@@ -179,7 +337,6 @@ export default function PracticePage() {
                   </div>
                 )}
 
-                {/* Action Button */}
                 {hasQuestions ? (
                   <Button className="w-full gap-2">
                     <Target className="h-4 w-4" />
