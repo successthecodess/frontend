@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
+import { Navbar } from '@/components/Navbar';
 import { LoadingState } from '@/components/LoadingState';
 
 export default function DashboardLayout({
@@ -27,5 +28,10 @@ export default function DashboardLayout({
     return null;
   }
 
-  return <>{children}</>;
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Navbar />
+      <main>{children}</main>
+    </div>
+  );
 }
