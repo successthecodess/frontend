@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { jwtDecode } from 'jwt-decode'; 
+import { jwtDecode } from 'jwt-decode';
 
 interface User {
   userId: string;
@@ -29,12 +29,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   useEffect(() => {
-    // Check for token on mount
+    // Only run in browser
+    if (typeof window === 'undefined') {
+      setIsLoading(false);
+      return;
+    }
+
     const token = localStorage.getItem('authToken');
     
     if (token) {
       try {
-        const decoded = jwtDecode<User>(token); // Changed to jwtDecode with type
+        const decoded = jwtDecode<User>(token);
         setUser(decoded);
       } catch (error) {
         console.error('Invalid token:', error);
@@ -46,7 +51,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const logout = () => {
-    localStorage.removeItem('authToken');
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('authToken');
+    }
     setUser(null);
     router.push('/login');
   };
