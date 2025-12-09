@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext'; // Changed
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -47,29 +47,30 @@ interface StreakData {
   lastActiveDate: string | null;
 }
 
-export function DashboardOverview() {
-  const { user } = useUser();
+interface DashboardOverviewProps {
+  userId: string; // Add userId prop
+}
+
+export function DashboardOverview({ userId }: DashboardOverviewProps) {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [streakData, setStreakData] = useState<StreakData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       loadDashboardData();
     }
-  }, [user]);
+  }, [userId]);
 
   const loadDashboardData = async () => {
-    if (!user) return;
-
     try {
       setLoading(true);
       setError(null);
 
       const [overviewResponse, streakResponse] = await Promise.all([
-        api.getDashboardOverview(user.id),
-        api.getStreaks(user.id),
+        api.getDashboardOverview(userId), // Use userId prop
+        api.getStreaks(userId),
       ]);
 
       setDashboardData(overviewResponse.data);

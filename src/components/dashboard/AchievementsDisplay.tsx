@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { Card } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { api } from '@/lib/api';
 import { LoadingState } from '@/components/LoadingState';
 import { Trophy } from 'lucide-react';
@@ -16,23 +14,24 @@ interface Achievement {
   unlocked: boolean;
 }
 
-export function AchievementsDisplay() {
-  const { user } = useUser();
+interface AchievementsDisplayProps {
+  userId: string; // Add userId prop
+}
+
+export function AchievementsDisplay({ userId }: AchievementsDisplayProps) {
   const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       loadAchievements();
     }
-  }, [user]);
+  }, [userId]);
 
   const loadAchievements = async () => {
-    if (!user) return;
-
     try {
       setLoading(true);
-      const response = await api.getAchievements(user.id);
+      const response = await api.getAchievements(userId); // Use userId prop
       setAchievements(response.data.achievements);
     } catch (error) {
       console.error('Failed to load achievements:', error);

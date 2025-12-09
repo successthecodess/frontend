@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useUser } from '@clerk/nextjs';
+import { useAuth } from '@/contexts/AuthContext'; // Changed from useUser
 import { api } from '@/lib/api';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { FeedbackCard } from '@/components/practice/FeedbackCard';
@@ -17,7 +17,7 @@ import type { Unit, Question, StudySession, AnswerResult, ProgressMetrics } from
 export default function PracticePage() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useUser();
+  const { user } = useAuth(); // Changed from useUser
   const unitId = params.unitId as string;
 
   const [unit, setUnit] = useState<Unit | null>(null);
@@ -88,7 +88,7 @@ export default function PracticePage() {
             await loadProgress();
             
             const questionResponse = await api.getNextQuestion(
-              user.id,
+              user.userId, // Changed from user.id
               storedSessionId,
               unitId,
               sessionData.answeredQuestions || []
@@ -177,11 +177,11 @@ export default function PracticePage() {
 
     try {
       const response = await api.startPracticeSession(
-        user.id,
+        user.userId, // Changed from user.id
         unitId,
         undefined,
-        user.emailAddresses[0]?.emailAddress,
-        user.fullName || user.firstName || undefined,
+        user.email, // Changed from user.emailAddresses[0]?.emailAddress
+        user.name, // Changed from user.fullName || user.firstName
         target
       );
 
@@ -213,7 +213,7 @@ export default function PracticePage() {
     if (!user) return;
 
     try {
-      const response = await api.getUserProgress(user.id, unitId);
+      const response = await api.getUserProgress(user.userId, unitId); // Changed
       if (response.data.progress) {
         console.log('📊 Current progress:', response.data.progress);
         setProgress(response.data.progress);
@@ -227,7 +227,7 @@ export default function PracticePage() {
     if (!user) return;
 
     try {
-      await api.getLearningInsights(user.id, unitId);
+      await api.getLearningInsights(user.userId, unitId); // Changed
     } catch (error) {
       console.error('Failed to load insights:', error);
     }
@@ -247,7 +247,7 @@ export default function PracticePage() {
       console.log('📝 Submitting answer for question:', currentQuestion.difficulty);
       
       const response = await api.submitAnswer(
-        user.id,
+        user.userId, // Changed
         session.id,
         currentQuestion.id,
         answer,
@@ -302,7 +302,7 @@ export default function PracticePage() {
       console.log('🔄 Getting next question...');
       
       const response = await api.getNextQuestion(
-        user.id,
+        user.userId, // Changed
         session.id,
         unitId,
         answeredQuestions

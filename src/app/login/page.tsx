@@ -25,21 +25,22 @@ function LoginContent() {
   }, [searchParams]);
 
   const handleLoginWithTutorBoss = async () => {
-    setIsLoading(true);
-    setError(null);
+  setIsLoading(true);
+  setError(null);
 
-    try {
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/ghl/login`
-      );
-      const { authUrl } = await response.json();
-      window.location.href = authUrl;
-    } catch (error) {
-      console.error('Failed to initiate login:', error);
-      setError('Failed to connect to Tutor Boss. Please try again.');
-      setIsLoading(false);
-    }
-  };
+  try {
+    // CHANGED from /auth/ghl/login to /auth/oauth/login
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/login`
+    );
+    const { authUrl } = await response.json();
+    window.location.href = authUrl;
+  } catch (error) {
+    console.error('Failed to initiate login:', error);
+    setError('Failed to connect to Tutor Boss. Please try again.');
+    setIsLoading(false);
+  }
+};
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 px-4">

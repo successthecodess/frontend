@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useUser } from '@clerk/nextjs';
 import { Card } from '@/components/ui/card';
 import { api } from '@/lib/api';
 import { LoadingState } from '@/components/LoadingState';
@@ -15,24 +14,25 @@ interface PerformanceData {
   averageTime: number;
 }
 
-export function PerformanceChart() {
-  const { user } = useUser();
+interface PerformanceChartProps {
+  userId: string; // Add userId prop
+}
+
+export function PerformanceChart({ userId }: PerformanceChartProps) {
   const [data, setData] = useState<PerformanceData[]>([]);
   const [loading, setLoading] = useState(true);
   const [days, setDays] = useState(30);
 
   useEffect(() => {
-    if (user) {
+    if (userId) {
       loadPerformanceData();
     }
-  }, [user, days]);
+  }, [userId, days]);
 
   const loadPerformanceData = async () => {
-    if (!user) return;
-
     try {
       setLoading(true);
-      const response = await api.getPerformanceHistory(user.id, days);
+      const response = await api.getPerformanceHistory(userId, days); // Use userId prop
       setData(response.data.performanceHistory);
     } catch (error) {
       console.error('Failed to load performance data:', error);
@@ -61,7 +61,6 @@ export function PerformanceChart() {
     );
   }
 
-  const maxAccuracy = Math.max(...data.map(d => d.accuracy), 100);
   const maxQuestions = Math.max(...data.map(d => d.questionsAttempted), 1);
 
   return (

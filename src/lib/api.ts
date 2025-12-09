@@ -15,8 +15,11 @@ class APIError extends Error {
     this.name = 'APIError';
   }
 }
-// Add this at the top of your API calls
+
+// Get auth headers with JWT token
 const getAuthHeaders = () => {
+  if (typeof window === 'undefined') return { 'Content-Type': 'application/json' };
+  
   const token = localStorage.getItem('authToken');
   return {
     'Content-Type': 'application/json',
@@ -24,11 +27,6 @@ const getAuthHeaders = () => {
   };
 };
 
-// Update your fetch calls to use auth headers
-const response = await fetch(`${API_BASE_URL}/endpoint`, {
-  method: 'GET',
-  headers: getAuthHeaders(),
-});
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function isRetryableError(error: any, statusCode?: number): boolean {
@@ -149,17 +147,17 @@ export const api = {
   // Units
   async getUnits() {
     const url = `${API_BASE_URL}/units`;
-    return handleResponse(url, {}, 'getUnits');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getUnits');
   },
 
   async getUnit(unitId: string) {
     const url = `${API_BASE_URL}/units/${unitId}`;
-    return handleResponse(url, {}, 'getUnit');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getUnit');
   },
 
   async getTopicsByUnit(unitId: string) {
     const url = `${API_BASE_URL}/units/${unitId}/topics`;
-    return handleResponse(url, {}, 'getTopicsByUnit');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getTopicsByUnit');
   },
 
   // Practice
@@ -176,7 +174,7 @@ export const api = {
       url,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           userId,
           unitId,
@@ -201,7 +199,7 @@ export const api = {
       url,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           userId,
           sessionId,
@@ -225,7 +223,7 @@ export const api = {
       url,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           userId,
           sessionId,
@@ -244,7 +242,7 @@ export const api = {
       url,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
       },
       'endPracticeSession'
     );
@@ -253,18 +251,18 @@ export const api = {
   // Progress
   async getUserProgress(userId: string, unitId: string) {
     const url = `${API_BASE_URL}/progress/${userId}/${unitId}`;
-    return handleResponse(url, {}, 'getUserProgress');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getUserProgress');
   },
 
   async getLearningInsights(userId: string, unitId: string) {
     const url = `${API_BASE_URL}/progress/insights/${userId}/${unitId}`;
-    return handleResponse(url, {}, 'getLearningInsights');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getLearningInsights');
   },
 
   // Dashboard
   async getDashboardOverview(userId: string) {
     const url = `${API_BASE_URL}/progress/dashboard/${userId}/overview`;
-    return handleResponse(url, {}, 'getDashboardOverview');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getDashboardOverview');
   },
 
   async getPerformanceHistory(userId: string, days = 30, unitId?: string) {
@@ -272,34 +270,34 @@ export const api = {
     if (unitId) params.append('unitId', unitId);
     
     const url = `${API_BASE_URL}/progress/dashboard/${userId}/performance-history?${params}`;
-    return handleResponse(url, {}, 'getPerformanceHistory');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getPerformanceHistory');
   },
 
   async getStreaks(userId: string) {
     const url = `${API_BASE_URL}/progress/dashboard/${userId}/streaks`;
-    return handleResponse(url, {}, 'getStreaks');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getStreaks');
   },
 
   async getAchievements(userId: string) {
     const url = `${API_BASE_URL}/progress/dashboard/${userId}/achievements`;
-    return handleResponse(url, {}, 'getAchievements');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getAchievements');
   },
 
   // Admin
   async getAdminStats() {
     const url = `${API_BASE_URL}/admin/dashboard/stats`;
-    return handleResponse(url, {}, 'getAdminStats');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getAdminStats');
   },
 
   async getQuestions(filters?: any) {
     const params = new URLSearchParams(filters);
     const url = `${API_BASE_URL}/admin/questions?${params}`;
-    return handleResponse(url, {}, 'getQuestions');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getQuestions');
   },
 
   async getQuestion(questionId: string) {
     const url = `${API_BASE_URL}/admin/questions/${questionId}`;
-    return handleResponse(url, {}, 'getQuestion');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getQuestion');
   },
 
   async createQuestion(data: any) {
@@ -308,7 +306,7 @@ export const api = {
       url,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       },
       'createQuestion'
@@ -321,7 +319,7 @@ export const api = {
       url,
       {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify(data),
       },
       'updateQuestion'
@@ -334,6 +332,7 @@ export const api = {
       url,
       {
         method: 'DELETE',
+        headers: getAuthHeaders(),
       },
       'deleteQuestion'
     );
@@ -345,7 +344,7 @@ export const api = {
       url,
       {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({ approved }),
       },
       'approveQuestion'
@@ -356,11 +355,16 @@ export const api = {
     const formData = new FormData();
     formData.append('file', file);
     
+    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+    
     const url = `${API_BASE_URL}/admin/questions/bulk-upload`;
     return handleResponse(
       url,
       {
         method: 'POST',
+        headers: {
+          ...(token && { 'Authorization': `Bearer ${token}` }),
+        },
         body: formData,
       },
       'bulkUploadQuestions'
@@ -374,7 +378,7 @@ export const api = {
     if (timeRange) params.append('timeRange', timeRange);
     
     const url = `${API_BASE_URL}/analytics?${params}`;
-    return handleResponse(url, {}, 'getAnalytics');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getAnalytics');
   },
 
   async downloadAnalyticsReport(unitId?: string, timeRange?: string) {
@@ -383,43 +387,20 @@ export const api = {
     if (timeRange) params.append('timeRange', timeRange);
     
     const url = `${API_BASE_URL}/analytics/download?${params}`;
-    return handleResponse(url, {}, 'downloadAnalyticsReport');
+    return handleResponse(url, { headers: getAuthHeaders() }, 'downloadAnalyticsReport');
   },
 
   // GoHighLevel Integration
-  async connectGHL(userId: string) {
-    const url = `${API_BASE_URL}/ghl/connect?userId=${userId}`;
-    const result = await handleResponse(url, {}, 'connectGHL');
-    return { data: result };
-  },
-
-  async getGHLStatus(userId: string) {
-    const url = `${API_BASE_URL}/ghl/status?userId=${userId}`;
-    const result = await handleResponse(url, {}, 'getGHLStatus');
-    return { data: result };
-  },
-
-  async disconnectGHL(userId: string) {
-    const url = `${API_BASE_URL}/ghl/disconnect?userId=${userId}`;
-    const result = await handleResponse(
-      url,
-      { method: 'DELETE' },
-      'disconnectGHL'
-    );
-    return { data: result };
-  },
-
-  async syncGHLContact(userId: string, contactData: any) {
-    const url = `${API_BASE_URL}/ghl/sync-contact`;
-    const result = await handleResponse(
+  async syncProgress(userId: string, progressData: any) {
+    const url = `${API_BASE_URL}/auth/oauth/sync-progress`;
+    return handleResponse(
       url,
       {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId, contactData }),
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ userId, progressData }),
       },
-      'syncGHLContact'
+      'syncProgress'
     );
-    return { data: result };
   },
 };
