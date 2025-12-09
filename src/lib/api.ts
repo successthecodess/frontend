@@ -2,10 +2,9 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/a
 
 // Retry configuration
 const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000; // 1 second
-const TIMEOUT = 30000; // 30 seconds
+const RETRY_DELAY = 1000;
+const TIMEOUT = 30000;
 
-// Custom error class
 class APIError extends Error {
   constructor(
     message: string,
@@ -16,28 +15,35 @@ class APIError extends Error {
     this.name = 'APIError';
   }
 }
+// Add this at the top of your API calls
+const getAuthHeaders = () => {
+  const token = localStorage.getItem('authToken');
+  return {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+  };
+};
 
-// Sleep utility for retries
+// Update your fetch calls to use auth headers
+const response = await fetch(`${API_BASE_URL}/endpoint`, {
+  method: 'GET',
+  headers: getAuthHeaders(),
+});
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-// Check if error is retryable
 function isRetryableError(error: any, statusCode?: number): boolean {
-  // Network errors
   if (error instanceof TypeError && error.message.includes('fetch')) {
     return true;
   }
   
-  // 5xx server errors (except 501 Not Implemented)
   if (statusCode && statusCode >= 500 && statusCode !== 501) {
     return true;
   }
   
-  // 429 Too Many Requests
   if (statusCode === 429) {
     return true;
   }
   
-  // Timeout errors
   if (error.name === 'AbortError') {
     return true;
   }
@@ -45,7 +51,6 @@ function isRetryableError(error: any, statusCode?: number): boolean {
   return false;
 }
 
-// Enhanced fetch with timeout
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = TIMEOUT) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
@@ -63,7 +68,6 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout 
   }
 }
 
-// Enhanced response handler with retries
 async function handleResponse(
   url: string,
   options: RequestInit = {},
@@ -86,7 +90,6 @@ async function handleResponse(
         } catch {}
       }
       
-      // Check if we should retry
       if (isRetryableError(null, response.status) && retryCount < MAX_RETRIES) {
         console.warn(`⚠️ API Error (attempt ${retryCount + 1}/${MAX_RETRIES}):`, {
           context,
@@ -94,12 +97,10 @@ async function handleResponse(
           url,
         });
         
-        // Wait before retrying (exponential backoff)
         await sleep(RETRY_DELAY * Math.pow(2, retryCount));
         return handleResponse(url, options, context, retryCount + 1);
       }
       
-      // Log error for debugging
       console.error('❌ API Error:', {
         context,
         status: response.status,
@@ -114,7 +115,6 @@ async function handleResponse(
     
     return response.json();
   } catch (error: any) {
-    // Network error or timeout - retry if possible
     if (isRetryableError(error) && retryCount < MAX_RETRIES) {
       console.warn(`⚠️ Network Error (attempt ${retryCount + 1}/${MAX_RETRIES}):`, {
         context,
@@ -126,7 +126,6 @@ async function handleResponse(
       return handleResponse(url, options, context, retryCount + 1);
     }
     
-    // Final failure
     console.error('❌ Request Failed:', {
       context,
       error: error.message,
@@ -134,7 +133,6 @@ async function handleResponse(
       retries: retryCount,
     });
     
-    // User-friendly error messages
     if (error.name === 'AbortError') {
       throw new APIError('Request timed out. Please check your connection and try again.', undefined, context);
     }
@@ -191,44 +189,13 @@ export const api = {
       'startPracticeSession'
     );
   },
-// Add these to your existing api object:
 
-// Dashboard
-async getDashboardOverview(userId: string) {
-  const url = `${API_BASE_URL}/progress/dashboard/${userId}/overview`;
-  return handleResponse(url, {}, 'getDashboardOverview');
-},
-
-async getPerformanceHistory(userId: string, days = 30, unitId?: string) {
-  const params = new URLSearchParams({ days: days.toString() });
-  if (unitId) params.append('unitId', unitId);
-  
-  const url = `${API_BASE_URL}/progress/dashboard/${userId}/performance-history?${params}`;
-  return handleResponse(url, {}, 'getPerformanceHistory');
-},
-
-async getStreaks(userId: string) {
-  const url = `${API_BASE_URL}/progress/dashboard/${userId}/streaks`;
-  return handleResponse(url, {}, 'getStreaks');
-},
-
-async getAchievements(userId: string) {
-  const url = `${API_BASE_URL}/progress/dashboard/${userId}/achievements`;
-  return handleResponse(url, {}, 'getAchievements');
-},
   async getNextQuestion(
     userId: string,
     sessionId: string,
     unitId: string,
     answeredQuestionIds: string[]
   ) {
-    console.log('🔄 API: Getting next question', {
-      userId,
-      sessionId,
-      unitId,
-      answeredCount: answeredQuestionIds.length,
-    });
-
     const url = `${API_BASE_URL}/practice/next`;
     return handleResponse(
       url,
@@ -294,6 +261,30 @@ async getAchievements(userId: string) {
     return handleResponse(url, {}, 'getLearningInsights');
   },
 
+  // Dashboard
+  async getDashboardOverview(userId: string) {
+    const url = `${API_BASE_URL}/progress/dashboard/${userId}/overview`;
+    return handleResponse(url, {}, 'getDashboardOverview');
+  },
+
+  async getPerformanceHistory(userId: string, days = 30, unitId?: string) {
+    const params = new URLSearchParams({ days: days.toString() });
+    if (unitId) params.append('unitId', unitId);
+    
+    const url = `${API_BASE_URL}/progress/dashboard/${userId}/performance-history?${params}`;
+    return handleResponse(url, {}, 'getPerformanceHistory');
+  },
+
+  async getStreaks(userId: string) {
+    const url = `${API_BASE_URL}/progress/dashboard/${userId}/streaks`;
+    return handleResponse(url, {}, 'getStreaks');
+  },
+
+  async getAchievements(userId: string) {
+    const url = `${API_BASE_URL}/progress/dashboard/${userId}/achievements`;
+    return handleResponse(url, {}, 'getAchievements');
+  },
+
   // Admin
   async getAdminStats() {
     const url = `${API_BASE_URL}/admin/dashboard/stats`;
@@ -307,7 +298,6 @@ async getAchievements(userId: string) {
   },
 
   async getQuestion(questionId: string) {
-    console.log('📝 Fetching question:', questionId);
     const url = `${API_BASE_URL}/admin/questions/${questionId}`;
     return handleResponse(url, {}, 'getQuestion');
   },
@@ -396,51 +386,40 @@ async getAchievements(userId: string) {
     return handleResponse(url, {}, 'downloadAnalyticsReport');
   },
 
-  // Settings
-  async getSettings() {
-    const url = `${API_BASE_URL}/settings`;
-    return handleResponse(url, {}, 'getSettings');
+  // GoHighLevel Integration
+  async connectGHL(userId: string) {
+    const url = `${API_BASE_URL}/ghl/connect?userId=${userId}`;
+    const result = await handleResponse(url, {}, 'connectGHL');
+    return { data: result };
   },
 
-  async updateSettings(settings: any) {
-    const url = `${API_BASE_URL}/settings`;
-    return handleResponse(
+  async getGHLStatus(userId: string) {
+    const url = `${API_BASE_URL}/ghl/status?userId=${userId}`;
+    const result = await handleResponse(url, {}, 'getGHLStatus');
+    return { data: result };
+  },
+
+  async disconnectGHL(userId: string) {
+    const url = `${API_BASE_URL}/ghl/disconnect?userId=${userId}`;
+    const result = await handleResponse(
       url,
-      {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
-      },
-      'updateSettings'
+      { method: 'DELETE' },
+      'disconnectGHL'
     );
+    return { data: result };
   },
 
-  async resetSettings() {
-    const url = `${API_BASE_URL}/settings/reset`;
-    return handleResponse(
-      url,
-      {
-        method: 'POST',
-      },
-      'resetSettings'
-    );
-  },
-
-  async exportSettings() {
-    const url = `${API_BASE_URL}/settings/export`;
-    return handleResponse(url, {}, 'exportSettings');
-  },
-
-  async importSettings(settings: any) {
-    const url = `${API_BASE_URL}/settings/import`;
-    return handleResponse(
+  async syncGHLContact(userId: string, contactData: any) {
+    const url = `${API_BASE_URL}/ghl/sync-contact`;
+    const result = await handleResponse(
       url,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify({ userId, contactData }),
       },
-      'importSettings'
+      'syncGHLContact'
     );
+    return { data: result };
   },
 };

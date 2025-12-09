@@ -25,8 +25,12 @@ export function Navbar() {
               <Link href="/dashboard/exams" className="text-sm font-medium text-gray-700 hover:text-gray-900">
                 Exams
               </Link>
+
               <Link href="/dashboard/progress" className="text-sm font-medium text-gray-700 hover:text-gray-900">
                 Progress
+              </Link>
+              <Link href="/dashboard/settings" className="text-sm font-medium text-gray-700 hover:text-gray-900">
+                Settings
               </Link>
             </div>
           </div>
