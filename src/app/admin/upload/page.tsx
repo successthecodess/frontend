@@ -26,7 +26,7 @@ export default function BulkUploadPage() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await api.bulkUploadQuestions(formData);
+      const response = await api.bulkUploadQuestions(file);
       setUploadResult(response.data);
       setFile(null);
     } catch (error) {
