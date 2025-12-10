@@ -1,114 +1,119 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ExternalLink, AlertCircle } from 'lucide-react';
+import { Code, Mail, Lock } from 'lucide-react';
 
-// Force dynamic rendering
-export const dynamic = 'force-dynamic';
-
-function LoginContent() {
+export default function LoginPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    const errorParam = searchParams.get('error');
-    if (errorParam === 'no_code') {
-      setError('Authorization was cancelled. Please try again.');
-    } else if (errorParam === 'auth_failed') {
-      setError('Failed to authenticate with Tutor Boss. Please try again.');
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/login`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, password }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Login failed');
+      }
+
+      // Store token
+      localStorage.setItem('authToken', data.token);
+
+      // Redirect to dashboard
+      router.push('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-  }, [searchParams]);
-
-  const handleLoginWithTutorBoss = async () => {
-  setIsLoading(true);
-  setError(null);
-
-  try {
-    // CHANGED from /auth/ghl/login to /auth/oauth/login
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/login`
-    );
-    const { authUrl } = await response.json();
-    window.location.href = authUrl;
-  } catch (error) {
-    console.error('Failed to initiate login:', error);
-    setError('Failed to connect to Tutor Boss. Please try again.');
-    setIsLoading(false);
-  }
-};
+  };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50 px-4">
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            AP CS Question Bank
-          </h1>
-          <p className="text-gray-600">
-            Practice with adaptive learning
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 mb-4">
+            <Code className="h-8 w-8 text-white" />
+          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Welcome Back!</h1>
+          <p className="mt-2 text-gray-600">
+            Log in with your Tutor Boss credentials
           </p>
         </div>
 
         {error && (
-          <div className="mb-6 rounded-lg bg-red-50 border border-red-200 p-4">
-            <div className="flex items-start gap-3">
-              <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-sm text-red-700">{error}</p>
-            </div>
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+            {error}
           </div>
         )}
 
-        <Button
-          onClick={handleLoginWithTutorBoss}
-          disabled={isLoading}
-          size="lg"
-          className="w-full gap-2 text-lg py-6"
-        >
-          {isLoading ? (
-            <>
-              <div className="h-5 w-5 animate-spin rounded-full border-2 border-white border-t-transparent" />
-              Connecting...
-            </>
-          ) : (
-            <>
-              <ExternalLink className="h-5 w-5" />
-              Login with Tutor Boss
-            </>
-          )}
-        </Button>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Email
+            </label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="your.email@example.com"
+                required
+              />
+            </div>
+          </div>
 
-        <div className="mt-6 text-center text-sm text-gray-600">
-          <p>Use your Tutor Boss credentials to access the question bank.</p>
-          <p className="mt-2">
-            Don't have an account?{' '}
-            <a 
-              href="https://tutorboss.com" 
-              target="_blank" 
-              rel="noopener noreferrer"
-              className="text-indigo-600 hover:text-indigo-700 font-medium"
-            >
-              Contact your tutor
-            </a>
-          </p>
-        </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+          </div>
+
+          <Button
+            type="submit"
+            className="w-full"
+            size="lg"
+            disabled={loading}
+          >
+            {loading ? 'Logging in...' : 'Log In'}
+          </Button>
+        </form>
+
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Need help? Contact your instructor
+        </p>
       </Card>
     </div>
-  );
-}
-
-export default function LoginPage() {
-  return (
-    <Suspense fallback={
-      <div className="flex min-h-screen items-center justify-center">
-        <div className="h-8 w-8 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-      </div>
-    }>
-      <LoginContent />
-    </Suspense>
   );
 }

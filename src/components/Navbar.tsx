@@ -14,7 +14,7 @@ export function Navbar() {
 
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: '/practice', label: 'Practice', icon: Target },
+    { href: 'dashboard/practice', label: 'Practice', icon: Target },
     { href: '/dashboard/progress', label: 'Progress', icon: TrendingUp },
   ];
 
