@@ -4,12 +4,11 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Code, Mail, Lock } from 'lucide-react';
+import { Code, Mail } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -24,7 +23,7 @@ export default function LoginPage() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email }), // Just email for now
         }
       );
 
@@ -34,10 +33,7 @@ export default function LoginPage() {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Store token
       localStorage.setItem('authToken', data.token);
-
-      // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Login failed. Please try again.');
@@ -55,7 +51,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-900">Welcome Back!</h1>
           <p className="mt-2 text-gray-600">
-            Log in with your Tutor Boss credentials
+            Enter your Tutor Boss email to continue
           </p>
         </div>
 
@@ -68,7 +64,7 @@ export default function LoginPage() {
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
-              Email
+              Email Address
             </label>
             <div className="relative">
               <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
@@ -76,28 +72,14 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 placeholder="your.email@example.com"
                 required
               />
             </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="••••••••"
-                required
-              />
-            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Use the same email registered in Tutor Boss
+            </p>
           </div>
 
           <Button
@@ -106,12 +88,12 @@ export default function LoginPage() {
             size="lg"
             disabled={loading}
           >
-            {loading ? 'Logging in...' : 'Log In'}
+            {loading ? 'Verifying...' : 'Continue'}
           </Button>
         </form>
 
         <p className="mt-6 text-center text-sm text-gray-600">
-          Need help? Contact your instructor
+          Not registered? Contact your instructor
         </p>
       </Card>
     </div>
