@@ -18,14 +18,10 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="flex gap-3">
-              <Link href="/sign-in">
+              <Link href="/login">
                 <Button variant="ghost" className="font-medium">Sign In</Button>
               </Link>
-              <Link href="/sign-up">
-                <Button className="bg-indigo-600 hover:bg-indigo-700">
-                  Get Started Free
-                </Button>
-              </Link>
+            
             </div>
           </div>
         </div>
@@ -52,17 +48,13 @@ export default function LandingPage() {
           </p>
           
           <div className="mt-12 flex flex-col sm:flex-row justify-center gap-4">
-            <Link href="/sign-up">
+            <Link href="/login">
               <Button size="lg" className="text-lg px-8 py-6 bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all">
                 Start Practicing Now
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </Link>
-            <Link href="/sign-in">
-              <Button size="lg" variant="outline" className="text-lg px-8 py-6 border-2 border-gray-300 hover:border-indigo-600 hover:text-indigo-600">
-                Sign In
-              </Button>
-            </Link>
+           
           </div>
 
           {/* Trust Indicators */}
@@ -172,7 +164,7 @@ export default function LandingPage() {
             <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto">
               Join students using our adaptive question bank to master AP Computer Science A.
             </p>
-            <Link href="/sign-up">
+            <Link href="/login">
               <Button size="lg" className="text-lg px-12 py-6 bg-white text-indigo-600 hover:bg-gray-100 shadow-lg">
                 Get Started Free
                 <ArrowRight className="ml-2 h-5 w-5" />

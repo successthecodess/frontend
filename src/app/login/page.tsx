@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Code, Mail } from 'lucide-react';
+import { Code, Mail, Loader2 } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -18,46 +18,53 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
+      console.log('Attempting login with email:', email);
+
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/login`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }), // Just email for now
+          body: JSON.stringify({ email }),
         }
       );
 
       const data = await response.json();
+      console.log('Login response:', { success: data.success, hasToken: !!data.token });
 
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
 
+      // Store token in localStorage
       localStorage.setItem('authToken', data.token);
+      console.log('Token stored, redirecting to dashboard...');
+
+      // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {
+      console.error('Login error:', err);
       setError(err.message || 'Login failed. Please try again.');
-    } finally {
       setLoading(false);
     }
   };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
-      <Card className="w-full max-w-md p-8">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 mb-4">
-            <Code className="h-8 w-8 text-white" />
+      <Card className="w-full max-w-md p-6 sm:p-8">
+        <div className="text-center mb-6 sm:mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br from-indigo-600 to-purple-600 mb-4">
+            <Code className="h-7 w-7 sm:h-8 sm:w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Welcome Back!</h1>
-          <p className="mt-2 text-gray-600">
-            Enter your Tutor Boss email to continue
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Welcome Back!</h1>
+          <p className="mt-2 text-sm sm:text-base text-gray-600">
+            Log in with your Tutor Boss email
           </p>
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
-            {error}
+          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200">
+            <p className="text-sm text-red-700">{error}</p>
           </div>
         )}
 
@@ -72,9 +79,10 @@ export default function LoginPage() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
                 placeholder="your.email@example.com"
                 required
+                disabled={loading}
               />
             </div>
             <p className="mt-2 text-xs text-gray-500">
@@ -88,13 +96,26 @@ export default function LoginPage() {
             size="lg"
             disabled={loading}
           >
-            {loading ? 'Verifying...' : 'Continue'}
+            {loading ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Verifying...
+              </>
+            ) : (
+              'Continue'
+            )}
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-gray-600">
-          Not registered? Contact your instructor
-        </p>
+        <div className="mt-6 text-center">
+          <p className="text-xs sm:text-sm text-gray-600">
+            Not registered?{' '}
+            <span className="font-medium text-indigo-600">
+              Contact your instructor
+            </span>
+          </p>
+        </div>
+        
       </Card>
     </div>
   );

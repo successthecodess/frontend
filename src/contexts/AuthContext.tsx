@@ -1,6 +1,6 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { jwtDecode } from 'jwt-decode';
 
@@ -8,7 +8,7 @@ interface User {
   userId: string;
   email: string;
   name?: string;
-  ghlUserId: string;
+  ghlUserId?: string;
 }
 
 interface AuthContextType {
@@ -17,43 +17,43 @@ interface AuthContextType {
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType>({
-  user: null,
-  isLoading: true,
-  logout: () => {},
-});
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
   useEffect(() => {
-    // Only run in browser
-    if (typeof window === 'undefined') {
-      setIsLoading(false);
-      return;
-    }
-
-    const token = localStorage.getItem('authToken');
-    
-    if (token) {
-      try {
-        const decoded = jwtDecode<User>(token);
-        setUser(decoded);
-      } catch (error) {
-        console.error('Invalid token:', error);
-        localStorage.removeItem('authToken');
+    // Load user from token on mount
+    const loadUser = () => {
+      if (typeof window === 'undefined') {
+        setIsLoading(false);
+        return;
       }
-    }
-    
-    setIsLoading(false);
+
+      try {
+        const token = localStorage.getItem('authToken');
+        
+        if (token) {
+          const decoded = jwtDecode<User>(token);
+          console.log('Loaded user from token:', decoded.email);
+          setUser(decoded);
+        }
+      } catch (error) {
+        console.error('Failed to load user from token:', error);
+        localStorage.removeItem('authToken');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadUser();
   }, []);
 
   const logout = () => {
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('authToken');
-    }
+    console.log('Logging out...');
+    localStorage.removeItem('authToken');
     setUser(null);
     router.push('/login');
   };
@@ -65,4 +65,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+}
