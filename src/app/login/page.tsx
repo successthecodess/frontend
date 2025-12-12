@@ -1,16 +1,27 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Code, Mail, Loader2 } from 'lucide-react';
+import { Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    // Pre-fill email if coming from signup
+    const emailParam = searchParams.get('email');
+    if (emailParam) {
+      setEmail(emailParam);
+    }
+  }, [searchParams]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,16 +118,50 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <div className="mt-6 text-center">
-          <p className="text-xs sm:text-sm text-gray-600">
-            Not registered?{' '}
-            <span className="font-medium text-indigo-600">
-              Contact your instructor
-            </span>
+        <div className="mt-6">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-gray-300" />
+            </div>
+            <div className="relative flex justify-center text-sm">
+              <span className="px-2 bg-white text-gray-500">or</span>
+            </div>
+          </div>
+
+          <div className="mt-6 text-center">
+            <p className="text-xs sm:text-sm text-gray-600">
+              Don't have a Tutor Boss account?{' '}
+              <Link
+                href="/signup"
+                className="font-medium text-indigo-600 hover:text-indigo-700"
+              >
+                Create one now
+              </Link>
+            </p>
+          </div>
+        </div>
+
+        {/* Admin Link */}
+        <div className="mt-6 pt-6 border-t border-gray-200">
+          <p className="text-center text-xs text-gray-500">
+            Admin?{' '}
+            <Link
+              href="/admin/ghl-setup"
+              className="font-medium text-indigo-600 hover:text-indigo-700"
+            >
+              Setup GHL Integration
+            </Link>
           </p>
         </div>
-        
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <LoginForm />
+    </Suspense>
   );
 }
