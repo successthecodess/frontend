@@ -18,7 +18,7 @@ export default function LandingPage() {
               </span>
             </div>
             <div className="flex gap-3">
-              <Link href="/login">
+              <Link href="/signup">
                 <Button variant="ghost" className="font-medium">Sign In</Button>
               </Link>
             
@@ -48,7 +48,7 @@ export default function LandingPage() {
           </p>
           
           <div className="mt-12 flex flex-col sm:flex-row justify-center gap-4">
-            <Link href="/login">
+            <Link href="/signup">
               <Button size="lg" className="text-lg px-8 py-6 bg-indigo-600 hover:bg-indigo-700 shadow-lg hover:shadow-xl transition-all">
                 Start Practicing Now
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -164,7 +164,7 @@ export default function LandingPage() {
             <p className="text-xl text-indigo-100 mb-8 max-w-2xl mx-auto">
               Join students using our adaptive question bank to master AP Computer Science A.
             </p>
-            <Link href="/login">
+            <Link href="/signup">
               <Button size="lg" className="text-lg px-12 py-6 bg-white text-indigo-600 hover:bg-gray-100 shadow-lg">
                 Get Started Free
                 <ArrowRight className="ml-2 h-5 w-5" />

@@ -26,47 +26,52 @@ export default function SignUpPage() {
   };
 
   const handleSignup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    try {
-      console.log('Attempting signup with:', formData.email);
+  try {
+    console.log('Attempting signup with:', formData.email);
 
-      const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/signup`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(formData),
-        }
-      );
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        if (data.existingAccount) {
-          // Account exists, redirect to login
-          setError('Account already exists. Redirecting to login...');
-          setTimeout(() => {
-            router.push(`/login?email=${encodeURIComponent(formData.email)}`);
-          }, 2000);
-          return;
-        }
-        throw new Error(data.error || 'Signup failed');
+    const response = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/signup`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
       }
+    );
 
-      // Store token
-      localStorage.setItem('authToken', data.token);
-      console.log('Signup successful, redirecting...');
+    const data = await response.json();
 
-      // Redirect to dashboard
-      router.push('/dashboard');
-    } catch (err: any) {
-      console.error('Signup error:', err);
-      setError(err.message || 'Signup failed. Please try again.');
-      setLoading(false);
+    if (!response.ok) {
+      if (data.existingAccount) {
+        // Account exists, redirect to login
+        setError('Account already exists. Redirecting to login...');
+        setTimeout(() => {
+          router.push(`/login?email=${encodeURIComponent(formData.email)}`);
+        }, 2000);
+        return;
+      }
+      throw new Error(data.error || 'Signup failed');
     }
+
+    // Store token
+    localStorage.setItem('authToken', data.token);
+    console.log('Signup successful, token stored');
+
+    // Force a small delay to ensure localStorage is written
+    await new Promise(resolve => setTimeout(resolve, 100));
+
+    // Use window.location for hard redirect
+    console.log('Redirecting to dashboard...');
+    window.location.href = '/dashboard';
+    
+  } catch (err: any) {
+    console.error('Signup error:', err);
+    setError(err.message || 'Signup failed. Please try again.');
+    setLoading(false);
+  }
   };
 
   return (

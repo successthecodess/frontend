@@ -49,10 +49,15 @@ function LoginForm() {
 
       // Store token in localStorage
       localStorage.setItem('authToken', data.token);
-      console.log('Token stored, redirecting to dashboard...');
+      console.log('Token stored successfully');
 
-      // Redirect to dashboard
-      router.push('/dashboard');
+      // Force a small delay to ensure localStorage is written
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Use window.location for hard redirect (ensures AuthContext picks up the token)
+      console.log('Redirecting to dashboard...');
+      window.location.href = '/dashboard';
+      
     } catch (err: any) {
       console.error('Login error:', err);
       setError(err.message || 'Login failed. Please try again.');
@@ -110,7 +115,7 @@ function LoginForm() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Verifying...
+                Logging in...
               </>
             ) : (
               'Continue'
@@ -160,7 +165,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full"></div></div>}>
       <LoginForm />
     </Suspense>
   );
