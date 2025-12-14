@@ -12,7 +12,8 @@ import {
   LogOut,
   Menu,
   X,
-  Shield
+  Shield,
+  Upload
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -87,6 +88,7 @@ export default function AdminLayout({
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Feature Flags', href: '/admin/features', icon: Flag },
     { name: 'Admins', href: '/admin/admins', icon: Shield },
+    { name: 'Bulk Upload', href: '/admin/upload', icon: Upload },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
     { name: 'Questions', href: '/admin/questions', icon: Settings },
     { name: 'GHL Setup', href: '/admin/ghl-setup', icon: Settings },
