@@ -26,52 +26,78 @@ export default function SignUpPage() {
   };
 
   const handleSignup = async (e: React.FormEvent) => {
-  e.preventDefault();
-  setError('');
-  setLoading(true);
+    e.preventDefault();
+    setError('');
+    setLoading(true);
 
-  try {
-    console.log('Attempting signup with:', formData.email);
+    try {
+      console.log('Attempting signup with:', formData.email);
 
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/signup`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/signup`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        if (data.existingAccount) {
+          // Account exists, redirect to login
+          setError('Account already exists. Redirecting to login...');
+          setTimeout(() => {
+            router.push(`/login?email=${encodeURIComponent(formData.email)}`);
+          }, 2000);
+          return;
+        }
+        throw new Error(data.error || 'Signup failed');
       }
-    );
 
-    const data = await response.json();
+      // Store token
+      localStorage.setItem('authToken', data.token);
+      console.log('Signup successful, token stored');
 
-    if (!response.ok) {
-      if (data.existingAccount) {
-        // Account exists, redirect to login
-        setError('Account already exists. Redirecting to login...');
-        setTimeout(() => {
-          router.push(`/login?email=${encodeURIComponent(formData.email)}`);
-        }, 2000);
-        return;
+      // Force a small delay to ensure localStorage is written
+      await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Decode token to check if user is admin
+      const payload = JSON.parse(atob(data.token.split('.')[1]));
+      
+      // Fetch user details to check admin status
+      try {
+        const userResponse = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${payload.userId}`,
+          {
+            headers: { Authorization: `Bearer ${data.token}` }
+          }
+        );
+
+        if (userResponse.ok) {
+          const userData = await userResponse.json();
+          
+          // Redirect based on admin status
+          if (userData.isAdmin || userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN') {
+            console.log('Admin user detected, redirecting to admin dashboard...');
+            window.location.href = '/admin/dashboard';
+            return;
+          }
+        }
+      } catch (err) {
+        console.log('Could not fetch user details, defaulting to student dashboard');
       }
-      throw new Error(data.error || 'Signup failed');
+
+      // Default to student dashboard
+      console.log('Regular user, redirecting to student dashboard...');
+      window.location.href = '/dashboard';
+      
+    } catch (err: any) {
+      console.error('Signup error:', err);
+      setError(err.message || 'Signup failed. Please try again.');
+      setLoading(false);
     }
-
-    // Store token
-    localStorage.setItem('authToken', data.token);
-    console.log('Signup successful, token stored');
-
-    // Force a small delay to ensure localStorage is written
-    await new Promise(resolve => setTimeout(resolve, 100));
-
-    // Use window.location for hard redirect
-    console.log('Redirecting to dashboard...');
-    window.location.href = '/dashboard';
-    
-  } catch (err: any) {
-    console.error('Signup error:', err);
-    setError(err.message || 'Signup failed. Please try again.');
-    setLoading(false);
-  }
   };
 
   return (

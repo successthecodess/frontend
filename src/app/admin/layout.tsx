@@ -58,7 +58,7 @@ export default function AdminLayout({
       
       if (!userData.isAdmin && userData.role !== 'ADMIN') {
         alert('Access denied. Admin privileges required.');
-        router.push('/dashboard');
+        router.push('/dashboard'); // Regular students go to /dashboard
         return;
       }
 
@@ -86,10 +86,10 @@ export default function AdminLayout({
   const navigation = [
     { name: 'Dashboard', href: '/admin/dashboard', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
-    { name: 'Feature Flags', href: '/admin/features', icon: Flag },
     { name: 'Admins', href: '/admin/admins', icon: Shield },
-    { name: 'Bulk Upload', href: '/admin/upload', icon: Upload },
+    { name: 'Feature Flags', href: '/admin/features', icon: Flag },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
+    { name: 'Bulk Upload', href: '/admin/upload', icon: Upload },
     { name: 'Questions', href: '/admin/questions', icon: Settings },
     { name: 'GHL Setup', href: '/admin/ghl-setup', icon: Settings },
   ];

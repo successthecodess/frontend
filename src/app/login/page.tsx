@@ -54,9 +54,33 @@ function LoginForm() {
       // Force a small delay to ensure localStorage is written
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Use window.location for hard redirect (ensures AuthContext picks up the token)
-      console.log('Redirecting to dashboard...');
-      window.location.href = '/dashboard';
+      // Decode token to check if user is admin
+      const payload = JSON.parse(atob(data.token.split('.')[1]));
+      
+      // Fetch user details to check admin status
+      const userResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${payload.userId}`,
+        {
+          headers: { Authorization: `Bearer ${data.token}` }
+        }
+      );
+
+      if (userResponse.ok) {
+        const userData = await userResponse.json();
+        
+        // Redirect based on admin status
+        if (userData.isAdmin || userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN') {
+          console.log('Admin user detected, redirecting to admin dashboard...');
+          window.location.href = '/admin/dashboard';
+        } else {
+          console.log('Regular user, redirecting to student dashboard...');
+          window.location.href = '/dashboard';
+        }
+      } else {
+        // If we can't fetch user details, default to student dashboard
+        console.log('Could not fetch user details, redirecting to dashboard...');
+        window.location.href = '/dashboard';
+      }
       
     } catch (err: any) {
       console.error('Login error:', err);
