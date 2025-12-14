@@ -71,7 +71,7 @@ function LoginForm() {
         // Redirect based on admin status
         if (userData.isAdmin || userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN') {
           console.log('Admin user detected, redirecting to admin dashboard...');
-          window.location.href = '/admin/dashboard';
+          window.location.href = '/admin';
         } else {
           console.log('Regular user, redirecting to student dashboard...');
           window.location.href = '/dashboard';
