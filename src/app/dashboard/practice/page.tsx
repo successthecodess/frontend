@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 interface Unit {
   id: string;
@@ -27,7 +28,7 @@ interface Unit {
   questionCount?: number;
 }
 
-export default function PracticePage() {
+function PracticePageContent() {
   const router = useRouter();
   const [units, setUnits] = useState<Unit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -443,5 +444,17 @@ export default function PracticePage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Wrap the entire page with ProtectedRoute
+export default function PracticePage() {
+  return (
+    <ProtectedRoute 
+      requireFeature="question_bank"
+      fallbackUrl="/dashboard"
+    >
+      <PracticePageContent />
+    </ProtectedRoute>
   );
 }
