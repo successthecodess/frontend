@@ -170,18 +170,7 @@ function LoginForm() {
           </div>
         </div>
 
-        {/* Admin Link */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-center text-xs text-gray-500">
-            Admin?{' '}
-            <Link
-              href="/admin/ghl-setup"
-              className="font-medium text-indigo-600 hover:text-indigo-700"
-            >
-              Setup GHL Integration
-            </Link>
-          </p>
-        </div>
+      
       </Card>
     </div>
   );

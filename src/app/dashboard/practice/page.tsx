@@ -233,9 +233,9 @@ function PracticePageContent() {
 
         {/* Header */}
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Practice by Unit</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Practice Tests</h1>
           <p className="mt-2 text-sm sm:text-base text-gray-600">
-            Choose a unit to begin your practice session
+            Choose a unit to take a practice test
           </p>
         </div>
 
@@ -247,12 +247,11 @@ function PracticePageContent() {
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="font-semibold text-blue-900 text-sm sm:text-base">
-                Adaptive Learning System
+                Practice Test Mode
               </h3>
               <p className="mt-1 text-xs sm:text-sm text-blue-700">
-                Questions adapt to your performance. The system tracks your progress
-                and adjusts difficulty to maximize learning. Choose timed mode to
-                practice under exam conditions!
+                Take full practice tests to prepare for the AP exam. Questions are selected
+                based on your performance. Use timed mode to simulate real exam conditions!
               </p>
             </div>
           </div>
@@ -342,7 +341,7 @@ function PracticePageContent() {
                   {hasQuestions ? (
                     <Button className="w-full gap-2 text-sm sm:text-base">
                       <Target className="h-4 w-4" />
-                      Start Practice
+                      Start Practice Test
                     </Button>
                   ) : (
                     <div className="space-y-2">
@@ -354,16 +353,6 @@ function PracticePageContent() {
                         <Lock className="h-4 w-4" />
                         Not Available
                       </Button>
-                      <Link href="/admin/questions/new" className="block">
-                        <Button 
-                          variant="outline" 
-                          size="sm"
-                          className="w-full gap-2 text-xs"
-                        >
-                          <FileQuestion className="h-3 w-3" />
-                          Add Questions (Admin)
-                        </Button>
-                      </Link>
                     </div>
                   )}
                 </div>
@@ -414,44 +403,17 @@ function PracticePageContent() {
             </div>
           </Card>
         </div>
-
-        {/* Admin Notice */}
-        {units.some(u => (u.questionCount || 0) === 0) && (
-          <Card className="border-orange-200 bg-orange-50 p-4 sm:p-6">
-            <div className="flex gap-3 sm:gap-4">
-              <div className="flex-shrink-0">
-                <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-orange-900 text-sm sm:text-base">
-                  Some Units Need Questions
-                </h3>
-                <p className="mt-1 text-xs sm:text-sm text-orange-700">
-                  {units.filter(u => (u.questionCount || 0) === 0).length} unit(s) don't have any questions yet. 
-                  {' '}Administrators can add questions through the{' '}
-                  <Link href="/admin/questions/new" className="font-semibold underline">
-                    Admin Panel
-                  </Link>
-                  {' '}or{' '}
-                  <Link href="/admin/upload" className="font-semibold underline">
-                    bulk upload
-                  </Link>
-                  {' '}them via CSV.
-                </p>
-              </div>
-            </div>
-          </Card>
-        )}
       </div>
     </div>
   );
 }
 
-// Wrap the entire page with ProtectedRoute
+
 export default function PracticePage() {
   return (
     <ProtectedRoute 
-      requireFeature="question_bank"
+      requireFeature="practice_test"
+      requireCourse="apcs-a"
       fallbackUrl="/dashboard"
     >
       <PracticePageContent />

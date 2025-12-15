@@ -247,9 +247,9 @@ export default function UsersPage() {
                       {user.hasAccessToQuestionBank && (
                         <span className="text-xs text-green-600">✓ Question Bank</span>
                       )}
-                      {user.hasAccessToTimedPractice && (
+                      {/* {user.hasAccessToTimedPractice && (
                         <span className="text-xs text-blue-600">✓ Timed Practice</span>
-                      )}
+                      )} */}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">

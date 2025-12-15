@@ -46,23 +46,9 @@ export function AccessDenied({
 
           {/* Requirements */}
           <div className="bg-gray-50 rounded-lg p-6 mb-8 text-left">
-            <h2 className="text-sm font-semibold text-gray-900 mb-4 uppercase tracking-wider">
-              What you need:
-            </h2>
+            
             <div className="space-y-3">
-              {requiredTag && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Tag className="h-4 w-4 text-purple-600" />
-                  </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Required Tag</p>
-                    <p className="text-sm text-gray-600">
-                      Your instructor needs to add the <code className="px-2 py-1 bg-purple-100 text-purple-800 rounded text-xs font-mono">{requiredTag}</code> tag to your account
-                    </p>
-                  </div>
-                </div>
-              )}
+            
 
               {requiresPremium && (
                 <div className="flex items-start gap-3">

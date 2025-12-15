@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext'; // Changed from useUser
+import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { QuestionCard } from '@/components/practice/QuestionCard';
 import { FeedbackCard } from '@/components/practice/FeedbackCard';
@@ -11,13 +11,14 @@ import { LearningInsightsCard } from '@/components/practice/LearningInsightsCard
 import { SessionSummary } from '@/components/practice/SessionSummary';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { Clock, AlertTriangle } from 'lucide-react';
 import type { Unit, Question, StudySession, AnswerResult, ProgressMetrics } from '@/types';
 
-export default function PracticePage() {
+function PracticeSessionContent() {
   const params = useParams();
   const router = useRouter();
-  const { user } = useAuth(); // Changed from useUser
+  const { user } = useAuth();
   const unitId = params.unitId as string;
 
   const [unit, setUnit] = useState<Unit | null>(null);
@@ -88,7 +89,7 @@ export default function PracticePage() {
             await loadProgress();
             
             const questionResponse = await api.getNextQuestion(
-              user.userId, // Changed from user.id
+              user.userId,
               storedSessionId,
               unitId,
               sessionData.answeredQuestions || []
@@ -177,11 +178,11 @@ export default function PracticePage() {
 
     try {
       const response = await api.startPracticeSession(
-        user.userId, // Changed from user.id
+        user.userId,
         unitId,
         undefined,
-        user.email, // Changed from user.emailAddresses[0]?.emailAddress
-        user.name, // Changed from user.fullName || user.firstName
+        user.email,
+        user.name,
         target
       );
 
@@ -213,7 +214,7 @@ export default function PracticePage() {
     if (!user) return;
 
     try {
-      const response = await api.getUserProgress(user.userId, unitId); // Changed
+      const response = await api.getUserProgress(user.userId, unitId);
       if (response.data.progress) {
         console.log('📊 Current progress:', response.data.progress);
         setProgress(response.data.progress);
@@ -227,7 +228,7 @@ export default function PracticePage() {
     if (!user) return;
 
     try {
-      await api.getLearningInsights(user.userId, unitId); // Changed
+      await api.getLearningInsights(user.userId, unitId);
     } catch (error) {
       console.error('Failed to load insights:', error);
     }
@@ -247,7 +248,7 @@ export default function PracticePage() {
       console.log('📝 Submitting answer for question:', currentQuestion.difficulty);
       
       const response = await api.submitAnswer(
-        user.userId, // Changed
+        user.userId,
         session.id,
         currentQuestion.id,
         answer,
@@ -302,7 +303,7 @@ export default function PracticePage() {
       console.log('🔄 Getting next question...');
       
       const response = await api.getNextQuestion(
-        user.userId, // Changed
+        user.userId,
         session.id,
         unitId,
         answeredQuestions
@@ -533,5 +534,17 @@ export default function PracticePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function PracticePage() {
+  return (
+    <ProtectedRoute 
+      requireFeature="practice_test"
+      requireCourse="apcs-a"
+      fallbackUrl="/dashboard"
+    >
+      <PracticeSessionContent />
+    </ProtectedRoute>
   );
 }

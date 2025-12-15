@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Save, Tag, RefreshCw } from 'lucide-react';
+import { ArrowLeft, Save, Tag, RefreshCw, X, Plus, CheckCircle } from 'lucide-react';
 
 export default function UserEditPage() {
   const params = useParams();
@@ -12,6 +12,8 @@ export default function UserEditPage() {
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [newTag, setNewTag] = useState('');
+  const [addingTag, setAddingTag] = useState(false);
   const [formData, setFormData] = useState({
     role: 'STUDENT',
     isAdmin: false,
@@ -33,7 +35,8 @@ export default function UserEditPage() {
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${params.id}`,
         {
-          headers: { Authorization: `Bearer ${token}` }
+          headers: { Authorization: `Bearer ${token}` },
+          cache: 'no-store',
         }
       );
 
@@ -57,42 +60,44 @@ export default function UserEditPage() {
   };
 
   const handleSave = async () => {
-  setSaving(true);
-  try {
-    const token = localStorage.getItem('authToken');
-    const response = await fetch(
-      `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${params.id}/permissions`,
-      {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          ...formData,
-          premiumUntil: formData.premiumUntil || null,
-        }),
-      }
-    );
-
-    const data = await response.json();
-
-    if (response.ok) {
-      // Show success message with better feedback
-      alert(
-        '✅ User permissions updated successfully!\n\n' 
+    setSaving(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${params.id}/permissions`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            ...formData,
+            premiumUntil: formData.premiumUntil || null,
+          }),
+        }
       );
-      loadUser();
-    } else {
-      alert('Failed to update permissions: ' + (data.error || 'Unknown error'));
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(
+          '✅ User permissions updated successfully!\n\n' +
+          'The user will see these changes immediately when they:\n' +
+          '• Refresh their current page\n' +
+          '• Navigate to a new page\n' +
+          '• Login again'
+        );
+        loadUser();
+      } else {
+        alert('Failed to update permissions: ' + (data.error || 'Unknown error'));
+      }
+    } catch (error) {
+      alert('Failed to update permissions. Please try again.');
+    } finally {
+      setSaving(false);
     }
-  } catch (error) {
-    alert('Failed to update permissions. Please try again.');
-  } finally {
-    setSaving(false);
-  }
-};
-       
+  };
 
   const syncTags = async () => {
     try {
@@ -107,11 +112,76 @@ export default function UserEditPage() {
 
       const data = await response.json();
       if (data.success) {
-        alert(`✅ Tags synced!\nTags: ${data.tags.join(', ') || 'None'}`);
+        alert(`✅ Tags synced from GHL!\nTags: ${data.tags.join(', ') || 'None'}`);
         loadUser();
       }
     } catch (error) {
       alert('Failed to sync tags');
+    }
+  };
+
+  const handleAddTag = async (tagToAdd?: string) => {
+    const tag = tagToAdd || newTag.trim();
+    if (!tag) return;
+
+    setAddingTag(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${params.id}/tags/add`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ tag }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`✅ Tag "${tag}" added successfully to GHL!`);
+        setNewTag('');
+        loadUser();
+      } else {
+        alert(`Failed to add tag: ${data.error}`);
+      }
+    } catch (error) {
+      alert('Failed to add tag');
+    } finally {
+      setAddingTag(false);
+    }
+  };
+
+  const handleRemoveTag = async (tag: string) => {
+    if (!confirm(`Remove tag "${tag}" from GHL?\n\nThis will remove the tag from both the database and GHL.`)) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${params.id}/tags/remove`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ tag }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`✅ Tag "${tag}" removed successfully from GHL!`);
+        loadUser();
+      } else {
+        alert(`Failed to remove tag: ${data.error}`);
+      }
+    } catch (error) {
+      alert('Failed to remove tag');
     }
   };
 
@@ -171,26 +241,6 @@ export default function UserEditPage() {
           </div>
         </div>
 
-        {/* Tags */}
-        <div className="mt-6">
-          <p className="text-gray-600 mb-2">GHL Tags</p>
-          <div className="flex flex-wrap gap-2">
-            {user.ghlTags && user.ghlTags.length > 0 ? (
-              user.ghlTags.map((tag: string) => (
-                <span
-                  key={tag}
-                  className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-purple-100 text-purple-800 text-sm"
-                >
-                  <Tag className="h-4 w-4" />
-                  {tag}
-                </span>
-              ))
-            ) : (
-              <span className="text-sm text-gray-400">No tags</span>
-            )}
-          </div>
-        </div>
-
         {/* Activity Stats */}
         <div className="mt-6 grid grid-cols-3 gap-4">
           <div>
@@ -204,6 +254,114 @@ export default function UserEditPage() {
           <div>
             <p className="text-gray-600">Study Sessions</p>
             <p className="text-2xl font-bold mt-1">{user._count?.studySessions || 0}</p>
+          </div>
+        </div>
+      </Card>
+
+      {/* Tag Management */}
+      <Card className="p-6">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">GHL Tags Management</h2>
+
+        {/* Add Tag */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Add Tag to GHL
+          </label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              value={newTag}
+              onChange={(e) => setNewTag(e.target.value)}
+              placeholder="Enter tag name (e.g., apcs-access)"
+              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
+              onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
+            />
+            <Button onClick={() => handleAddTag()} disabled={!newTag.trim() || addingTag}>
+              {addingTag ? 'Adding...' : 'Add Tag'}
+            </Button>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            This will add the tag to both the database and GHL
+          </p>
+        </div>
+
+        {/* Current Tags */}
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Current Tags
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {user.ghlTags && user.ghlTags.length > 0 ? (
+              user.ghlTags.map((tag: string) => (
+                <div
+                  key={tag}
+                  className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-purple-100 text-purple-800 text-sm"
+                >
+                  <Tag className="h-3 w-3" />
+                  <span>{tag}</span>
+                  <button
+                    onClick={() => handleRemoveTag(tag)}
+                    className="hover:text-purple-900"
+                    title="Remove tag"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+              ))
+            ) : (
+              <span className="text-sm text-gray-400">No tags</span>
+            )}
+          </div>
+        </div>
+
+        {/* Quick Add Common Tags */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Quick Add Common Tags
+          </label>
+          <div className="flex flex-wrap gap-2">
+            {[
+            //  { tag: 'apcs-access', label: 'Question Bank', color: 'bg-blue-50 text-blue-700 border-blue-200' },
+             // { tag: 'apcs-timed', label: 'Timed Practice', color: 'bg-green-50 text-green-700 border-green-200' },
+              { tag: 'apcs-test-access', label: 'Practice Test', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+              { tag: 'apcs-exam', label: 'Exam Mode (Premium)', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+              { tag: 'apcs-analytics', label: 'Analytics', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
+              { tag: 'course-apcs-a', label: 'AP CS A Course', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+            ].map(({ tag, label, color }) => (
+              <Button
+                key={tag}
+                size="sm"
+                variant="outline"
+                onClick={() => handleAddTag(tag)}
+                disabled={user.ghlTags?.includes(tag) || addingTag}
+                className={`text-xs border ${color} ${user.ghlTags?.includes(tag) ? 'opacity-50' : ''}`}
+              >
+                {user.ghlTags?.includes(tag) ? (
+                  <>
+                    <CheckCircle className="h-3 w-3 mr-1" />
+                    {label}
+                  </>
+                ) : (
+                  <>
+                    <Plus className="h-3 w-3 mr-1" />
+                    {label}
+                  </>
+                )}
+              </Button>
+            ))}
+          </div>
+          <div className="mt-3 p-3 bg-blue-50 rounded-lg border border-blue-200">
+            <p className="text-xs text-blue-700">
+              <strong>Tag Guide:</strong>
+            </p>
+            <ul className="text-xs text-blue-600 mt-1 space-y-1">
+              {/* <li>• <strong>apcs-access</strong>: Basic question bank access</li> */}
+              {/* <li>• <strong>apcs-timed</strong>: Timed practice mode</li> */}
+              <li>• <strong>apcs-test-access</strong>: Full practice test access</li>
+              <li>• <strong>apcs-exam</strong>: Premium exam with detailed report + AP score prediction</li>
+              <li>• <strong>apcs-analytics</strong>: Performance analytics dashboard</li>
+              <li>• <strong>course-apcs-a</strong>: AP Computer Science A course access</li>
+            </ul>
           </div>
         </div>
       </Card>
@@ -261,9 +419,9 @@ export default function UserEditPage() {
 
           {/* Feature Access */}
           <div>
-            <p className="text-sm font-medium text-gray-700 mb-3">Feature Access</p>
+            <p className="text-sm font-medium text-gray-700 mb-3">Feature Access (Database Flags)</p>
             <div className="space-y-3">
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+              {/* <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                 <input
                   type="checkbox"
                   checked={formData.hasAccessToQuestionBank}
@@ -271,9 +429,9 @@ export default function UserEditPage() {
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
                 />
                 <span className="text-gray-900">Question Bank Access</span>
-              </label>
+              </label> */}
 
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+              {/* <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                 <input
                   type="checkbox"
                   checked={formData.hasAccessToTimedPractice}
@@ -281,9 +439,9 @@ export default function UserEditPage() {
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
                 />
                 <span className="text-gray-900">Timed Practice Access</span>
-              </label>
+              </label> */}
 
-              <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+              {/* <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
                 <input
                   type="checkbox"
                   checked={formData.hasAccessToAnalytics}
@@ -291,8 +449,11 @@ export default function UserEditPage() {
                   className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
                 />
                 <span className="text-gray-900">Analytics Dashboard Access</span>
-              </label>
+              </label> */}
             </div>
+            <p className="text-xs text-gray-500 mt-2">
+              For the best experience, add GHL tags above. Database flags are fallback options.
+            </p>
           </div>
 
           {/* Premium */}
@@ -321,6 +482,11 @@ export default function UserEditPage() {
                   onChange={(e) => setFormData(prev => ({ ...prev, premiumUntil: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 />
+                <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+                  <p className="text-xs text-yellow-800">
+                    <strong>Premium Features:</strong> Official exam mode with detailed performance reports, AP score predictions, wrong answer analysis, and personalized study recommendations
+                  </p>
+                </div>
               </div>
             )}
           </div>
