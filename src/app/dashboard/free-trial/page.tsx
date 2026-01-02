@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Gift, Lock, CheckCircle, XCircle, ArrowRight } from 'lucide-react';
+import { Gift, Lock, CheckCircle, XCircle, ArrowRight, Mail } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -45,7 +45,7 @@ export default function FreeTrialPage() {
   const [hasUsedTrial, setHasUsedTrial] = useState(false);
   const [loading, setLoading] = useState(true);
   const [session, setSession] = useState<any>(null);
-  const [allQuestions, setAllQuestions] = useState<any[]>([]); // Pre-fetch all questions
+  const [allQuestions, setAllQuestions] = useState<any[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
   const [selectedAnswer, setSelectedAnswer] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -54,7 +54,6 @@ export default function FreeTrialPage() {
   const [summary, setSummary] = useState<any>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
 
-  // Memoize current question
   const currentQuestion = useMemo(
     () => allQuestions[currentQuestionIndex],
     [allQuestions, currentQuestionIndex]
@@ -66,7 +65,6 @@ export default function FreeTrialPage() {
     }
   }, [user]);
 
-  // Prefetch next question in background
   useEffect(() => {
     if (session && currentQuestionIndex < 9 && !allQuestions[currentQuestionIndex + 1]) {
       prefetchNextQuestion(currentQuestionIndex + 1);
@@ -123,7 +121,7 @@ export default function FreeTrialPage() {
 
       const data = await response.json();
       setSession(data.data.session);
-      setAllQuestions([data.data.question]); // Start with first question
+      setAllQuestions([data.data.question]);
       setCurrentQuestionIndex(0);
     } catch (error: any) {
       console.error('Failed to start trial:', error);
@@ -133,7 +131,6 @@ export default function FreeTrialPage() {
     }
   };
 
-  // Prefetch next question in background
   const prefetchNextQuestion = async (nextIndex: number) => {
     if (!session || nextIndex >= 10) return;
 
@@ -148,7 +145,6 @@ export default function FreeTrialPage() {
 
       const data = await response.json();
       
-      // Add to questions array
       setAllQuestions(prev => {
         const newQuestions = [...prev];
         newQuestions[nextIndex] = data.data.question;
@@ -211,10 +207,8 @@ export default function FreeTrialPage() {
       return;
     }
 
-    // Start transition animation
     setIsTransitioning(true);
 
-    // If question is already prefetched, transition immediately
     if (allQuestions[nextIndex]) {
       setTimeout(() => {
         setShowResult(false);
@@ -222,9 +216,8 @@ export default function FreeTrialPage() {
         setResult(null);
         setCurrentQuestionIndex(nextIndex);
         setIsTransitioning(false);
-      }, 300); // Smooth 300ms transition
+      }, 300);
     } else {
-      // Fetch if not prefetched
       try {
         const token = localStorage.getItem('authToken');
         const response = await fetch(
@@ -257,6 +250,14 @@ export default function FreeTrialPage() {
     }
   };
 
+  const handleContactInstructor = () => {
+    const subject = encodeURIComponent('Request for Full Access - Free Trial Completed');
+    const body = encodeURIComponent(
+      `Hi,\n\nI've completed the free diagnostic quiz with the following results:\n\nTotal Questions: ${summary?.totalQuestions || 'N/A'}\nCorrect Answers: ${summary?.correctAnswers || 'N/A'}\nAccuracy: ${summary?.accuracy || 'N/A'}%\n\nI would like to request full access to continue practicing.\n\nMy account details:\nName: ${user?.name || 'N/A'}\nEmail: ${user?.email || 'N/A'}\n\nThank you!`
+    );
+    window.location.href = `mailto:daniel@enginearu.com?subject=${subject}&body=${body}`;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -265,7 +266,6 @@ export default function FreeTrialPage() {
     );
   }
 
-  // Trial already used
   if (hasUsedTrial && !session) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -289,7 +289,6 @@ export default function FreeTrialPage() {
     );
   }
 
-  // Show summary after completion
   if (summary) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
@@ -340,20 +339,28 @@ export default function FreeTrialPage() {
             </p>
           </div>
 
-          <Button onClick={() => router.push('/dashboard')} className="w-full">
-            Return to Dashboard
-          </Button>
+          <div className="space-y-3">
+            <Button onClick={() => router.push('/dashboard')} className="w-full">
+              Return to Dashboard
+            </Button>
+            <Button
+              onClick={handleContactInstructor}
+              variant="outline"
+              className="w-full"
+            >
+              <Mail className="mr-2 h-4 w-4" />
+              Contact Instructor for Full Access
+            </Button>
+          </div>
         </Card>
       </div>
     );
   }
 
-  // Show question
   if (session && currentQuestion) {
     return (
       <div className="min-h-screen bg-gray-50 px-4 py-8">
         <div className="max-w-4xl mx-auto">
-          {/* Progress bar */}
           <div className="mb-6">
             <div className="flex items-center justify-between mb-2">
               <span className="text-sm font-medium text-gray-700">
@@ -486,7 +493,6 @@ export default function FreeTrialPage() {
     );
   }
 
-  // Landing page
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <Card className="max-w-2xl p-8 animate-in fade-in duration-500">

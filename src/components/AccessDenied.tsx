@@ -68,6 +68,14 @@ export function AccessDenied({
     }, 500);
   };
 
+  const handleContactInstructor = () => {
+    const subject = encodeURIComponent('Request for Full Access to AP CS Practice Platform');
+    const body = encodeURIComponent(
+      `Hi,\n\nI've completed the free diagnostic quiz and would like to request full access to the AP Computer Science A practice platform.\n\nMy account details:\nName: ${user?.name || 'N/A'}\nEmail: ${user?.email || 'N/A'}\n\nThank you!`
+    );
+    window.location.href = `mailto:daniel@enginearu.com?subject=${subject}&body=${body}`;
+  };
+
   // Show free trial prompt if user hasn't used it yet
   if (hasUsedTrial === false) {
     return (
@@ -187,9 +195,11 @@ export function AccessDenied({
                   <li>• Premium exam mode with AP score predictions</li>
                 </ul>
                 <Button
+                  onClick={handleContactInstructor}
                   className="bg-white text-orange-600 hover:bg-gray-100"
                   size="lg"
                 >
+                  <Mail className="mr-2 h-4 w-4" />
                   Contact Instructor for Access
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
@@ -313,13 +323,22 @@ export function AccessDenied({
           <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 mb-8">
             <div className="flex items-start gap-3">
               <Mail className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-              <div className="text-left">
+              <div className="text-left flex-1">
                 <p className="font-semibold text-indigo-900 mb-1">
                   Need Access?
                 </p>
-                <p className="text-sm text-indigo-700">
+                <p className="text-sm text-indigo-700 mb-3">
                   Contact your instructor to request access to this feature. They can grant you the necessary permissions from their admin panel.
                 </p>
+                <Button
+                  onClick={handleContactInstructor}
+                  variant="outline"
+                  size="sm"
+                  className="border-indigo-300 text-indigo-700 hover:bg-indigo-100"
+                >
+                  <Mail className="mr-2 h-3 w-3" />
+                  Email Instructor
+                </Button>
               </div>
             </div>
           </div>
