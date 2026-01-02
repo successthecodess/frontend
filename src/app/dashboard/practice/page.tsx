@@ -12,11 +12,14 @@ import {
   FileQuestion,
   Lock,
   Clock,
-  Zap
+  Zap,
+  Gift,
+  ArrowRight
 } from 'lucide-react';
 import { api } from '@/lib/api';
 import Link from 'next/link';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface Unit {
   id: string;
@@ -26,6 +29,94 @@ interface Unit {
   icon: string;
   color: string;
   questionCount?: number;
+}
+
+// Free Trial Prompt Component
+function FreeTrialPrompt() {
+  const router = useRouter();
+  const { user } = useAuth();
+  const [hasUsedTrial, setHasUsedTrial] = useState<boolean | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    checkTrialStatus();
+  }, [user]);
+
+  const checkTrialStatus = async () => {
+    if (!user) return;
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/free-trial/status/${user.userId}`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      const data = await response.json();
+      setHasUsedTrial(data.hasUsedFreeTrial);
+    } catch (error) {
+      console.error('Failed to check trial status:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loading || hasUsedTrial === null) return null;
+
+  // Show free trial prompt if not used
+  if (!hasUsedTrial) {
+    return (
+      <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 p-8 text-white border-0 mb-6">
+        <div className="flex items-start gap-4">
+          <div className="p-3 bg-white/20 rounded-lg flex-shrink-0">
+            <Gift className="h-10 w-10" />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-2xl font-bold mb-2">
+              🎉 Try Our Free Diagnostic Quiz First!
+            </h3>
+            <p className="text-white/90 mb-4">
+              Before getting full access, take our free 10-question diagnostic quiz to see where you stand. It covers all AP CS A units and gives you instant feedback!
+            </p>
+            <Button
+              onClick={() => router.push('/dashboard/free-trial')}
+              className="bg-white text-indigo-600 hover:bg-gray-100"
+            >
+              Start Free Trial
+              <ArrowRight className="ml-2 h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
+  // Show upgrade prompt if trial used
+  return (
+    <Card className="bg-gradient-to-r from-yellow-500 to-orange-600 p-8 text-white border-0 mb-6">
+      <div className="flex items-start gap-4">
+        <div className="p-3 bg-white/20 rounded-lg flex-shrink-0">
+          <Lock className="h-10 w-10" />
+        </div>
+        <div className="flex-1">
+          <h3 className="text-2xl font-bold mb-2">
+            Upgrade to Full Access
+          </h3>
+          <p className="text-white/90 mb-4">
+            You've completed the free trial! Contact your instructor to get full access to unlimited practice questions, adaptive difficulty, and detailed analytics.
+          </p>
+          <Button
+            className="bg-white text-orange-600 hover:bg-gray-100"
+          >
+            Contact Instructor for Access
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+    </Card>
+  );
 }
 
 function PracticePageContent() {
@@ -93,6 +184,9 @@ function PracticePageContent() {
   return (
     <div className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
+        {/* Free Trial Prompt */}
+        <FreeTrialPrompt />
+
         {/* Modal for Question Count & Timer Selection */}
         {showModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">

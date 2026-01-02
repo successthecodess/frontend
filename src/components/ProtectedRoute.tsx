@@ -194,7 +194,7 @@ export function ProtectedRoute({
               setAccessError({
                 feature: feature.displayName,
                 requiredTag: feature.requiredGhlTag,
-                message: `You need the "${feature.requiredGhlTag}" tag to access this feature.`,
+                message: `You do not have access this feature.`,
               });
               setLoading(false);
               return;
