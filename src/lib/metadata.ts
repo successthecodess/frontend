@@ -11,7 +11,7 @@ interface PageMetadata {
 export function generateMetadata({
   title,
   description,
-  image = '/og-image.png', 
+  image = '/og-image.jpeg', 
   url,
   type = 'website',
 }: PageMetadata): Metadata {

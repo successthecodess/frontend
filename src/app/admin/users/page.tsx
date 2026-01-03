@@ -14,7 +14,9 @@ import {
   Crown,
   Shield,
   Users as UsersIcon,
-  RefreshCw
+  RefreshCw,
+  Trash2,
+  AlertTriangle
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -23,6 +25,7 @@ export default function UsersPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('all');
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 50,
@@ -87,6 +90,52 @@ export default function UsersPage() {
     }
   };
 
+  const deleteUser = async (userId: string, userName: string, userEmail: string) => {
+    // Double confirmation
+    const confirmMessage = `⚠️ DELETE USER FROM PORTAL?\n\nUser: ${userName || userEmail}\nEmail: ${userEmail}\n\nThis will:\n✓ Delete user from the portal\n✓ Remove all their progress and data\n✓ Keep them in Tutor Boss\n✓ Allow them to sign up fresh next time\n\nAre you sure?`;
+    
+    if (!confirm(confirmMessage)) {
+      return;
+    }
+
+    // Second confirmation
+    const finalConfirm = confirm(`FINAL CONFIRMATION\n\nType the user's email to confirm:\n${userEmail}\n\nAre you absolutely sure you want to delete this user?`);
+    
+    if (!finalConfirm) {
+      return;
+    }
+
+    setDeletingUserId(userId);
+
+    try {
+      const token = localStorage.getItem('authToken');
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${userId}`,
+        {
+          method: 'DELETE',
+          headers: { 
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        }
+      );
+
+      const data = await response.json();
+
+      if (response.ok) {
+        alert(`✅ User deleted successfully!\n\n${userName || userEmail} has been removed from the portal.\n\nThey can sign up again with a fresh account.`);
+        loadUsers(); // Refresh the list
+      } else {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+    } catch (error: any) {
+      console.error('Failed to delete user:', error);
+      alert(`❌ Failed to delete user: ${error.message}`);
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
+
   const getRoleBadge = (user: any) => {
     if (user.isAdmin || user.role === 'ADMIN') {
       return (
@@ -126,6 +175,19 @@ export default function UsersPage() {
         <h1 className="text-3xl font-bold text-gray-900">User Management</h1>
         <p className="text-gray-600 mt-2">Manage users, roles, and permissions</p>
       </div>
+
+      {/* Warning Banner */}
+      <Card className="bg-yellow-50 border-yellow-200 p-4">
+        <div className="flex items-start gap-3">
+          <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-yellow-900">Important Note</h3>
+            <p className="text-sm text-yellow-800 mt-1">
+              Deleting a user removes them from the portal only. They will remain in Tutor Boss and can sign up again with a fresh account.
+            </p>
+          </div>
+        </div>
+      </Card>
 
       {/* Filters */}
       <Card className="p-4">
@@ -247,9 +309,6 @@ export default function UsersPage() {
                       {user.hasAccessToQuestionBank && (
                         <span className="text-xs text-green-600">✓ Question Bank</span>
                       )}
-                      {/* {user.hasAccessToTimedPractice && (
-                        <span className="text-xs text-blue-600">✓ Timed Practice</span>
-                      )} */}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
@@ -264,12 +323,27 @@ export default function UsersPage() {
                         size="sm"
                         variant="outline"
                         onClick={() => syncUserTags(user.id, user.email)}
+                        title="Sync tags from Tutor Boss"
                       >
                         <RefreshCw className="h-4 w-4" />
                       </Button>
                       <Link href={`/admin/users/${user.id}`}>
                         <Button size="sm">Edit</Button>
                       </Link>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                        onClick={() => deleteUser(user.id, user.name, user.email)}
+                        disabled={deletingUserId === user.id}
+                        title="Delete user from portal (keeps in Tutor Boss)"
+                      >
+                        {deletingUserId === user.id ? (
+                          <div className="animate-spin h-4 w-4 border-2 border-red-600 border-t-transparent rounded-full" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
                     </div>
                   </td>
                 </tr>
