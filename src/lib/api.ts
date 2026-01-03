@@ -1,3 +1,5 @@
+import { TokenManager } from '@/utils/tokenManager';
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // Retry configuration
@@ -20,7 +22,7 @@ class APIError extends Error {
 const getAuthHeaders = () => {
   if (typeof window === 'undefined') return { 'Content-Type': 'application/json' };
   
-  const token = localStorage.getItem('authToken');
+  const token = TokenManager.getAccessToken();
   return {
     'Content-Type': 'application/json',
     ...(token && { 'Authorization': `Bearer ${token}` }),
@@ -70,10 +72,44 @@ async function handleResponse(
   url: string,
   options: RequestInit = {},
   context?: string,
-  retryCount = 0
+  retryCount = 0,
+  hasAttemptedRefresh = false
 ): Promise<any> {
   try {
     const response = await fetchWithTimeout(url, options);
+    
+    // Handle token expiration with auto-refresh
+    if (response.status === 401 && !hasAttemptedRefresh) {
+      const errorData = await response.json().catch(() => ({}));
+      
+      if (errorData.code === 'TOKEN_EXPIRED') {
+        console.log('🔄 Token expired, attempting refresh...');
+        
+        const newToken = await TokenManager.refreshAccessToken();
+        
+        if (newToken) {
+          console.log('✅ Token refreshed successfully');
+          
+          // Retry request with new token
+          const newOptions = {
+            ...options,
+            headers: {
+              ...options.headers,
+              'Authorization': `Bearer ${newToken}`,
+            },
+          };
+          
+          return handleResponse(url, newOptions, context, retryCount, true);
+        } else {
+          console.error('❌ Token refresh failed, redirecting to login');
+          TokenManager.clearTokens();
+          if (typeof window !== 'undefined') {
+            window.location.href = '/login';
+          }
+          throw new APIError('Session expired. Please log in again.', 401, context);
+        }
+      }
+    }
     
     if (!response.ok) {
       let errorMessage = 'An error occurred';
@@ -96,7 +132,7 @@ async function handleResponse(
         });
         
         await sleep(RETRY_DELAY * Math.pow(2, retryCount));
-        return handleResponse(url, options, context, retryCount + 1);
+        return handleResponse(url, options, context, retryCount + 1, hasAttemptedRefresh);
       }
       
       console.error('❌ API Error:', {
@@ -121,7 +157,7 @@ async function handleResponse(
       });
       
       await sleep(RETRY_DELAY * Math.pow(2, retryCount));
-      return handleResponse(url, options, context, retryCount + 1);
+      return handleResponse(url, options, context, retryCount + 1, hasAttemptedRefresh);
     }
     
     console.error('❌ Request Failed:', {
@@ -355,7 +391,7 @@ export const api = {
     const formData = new FormData();
     formData.append('file', file);
     
-    const token = typeof window !== 'undefined' ? localStorage.getItem('authToken') : null;
+    const token = TokenManager.getAccessToken();
     
     const url = `${API_BASE_URL}/admin/questions/bulk-upload`;
     return handleResponse(
