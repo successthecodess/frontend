@@ -12,7 +12,7 @@ import { Suspense } from 'react';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setUser } = useAuth(); // Get setUser from context
+  const { setUser } = useAuth();
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -57,12 +57,20 @@ function LoginForm() {
       const payload = JSON.parse(atob(data.token.split('.')[1]));
       console.log('👤 Token payload:', { 
         userId: payload.userId, 
-        email: payload.email,
-        isAdmin: payload.isAdmin 
+        email: payload.email 
       });
 
-      // Set user in AuthContext immediately
-      const userData = {
+      // Fetch FULL user details from the API to get correct admin status
+      console.log('📡 Fetching user details to check admin status...');
+      const userResponse = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${payload.userId}`,
+        {
+          headers: { Authorization: `Bearer ${data.token}` }
+        }
+      );
+
+      let isAdmin = false;
+      let userData = {
         userId: payload.userId,
         email: payload.email,
         name: payload.name,
@@ -70,7 +78,37 @@ function LoginForm() {
         isAdmin: payload.isAdmin,
         isStaff: payload.isStaff,
       };
-      
+
+      if (userResponse.ok) {
+        const fullUserData = await userResponse.json();
+        console.log('✅ Full user data received:', {
+          isAdmin: fullUserData.isAdmin,
+          role: fullUserData.role
+        });
+        
+        // Check if user is admin
+        isAdmin = fullUserData.isAdmin || 
+                  fullUserData.role === 'ADMIN' || 
+                  fullUserData.role === 'SUPER_ADMIN';
+
+        // Update userData with full details
+        userData = {
+          userId: fullUserData.id || payload.userId,
+          email: fullUserData.email || payload.email,
+          name: fullUserData.name || payload.name,
+          role: fullUserData.role,
+          isAdmin: fullUserData.isAdmin,
+          isStaff: fullUserData.isStaff,
+        };
+      } else {
+        console.warn('⚠️ Could not fetch full user details, using token payload');
+        // Fallback to token payload
+        isAdmin = payload.isAdmin || 
+                  payload.role === 'ADMIN' || 
+                  payload.role === 'SUPER_ADMIN';
+      }
+
+      // Set user in AuthContext
       setUser(userData);
       console.log('✅ User set in context:', userData);
 
@@ -78,7 +116,7 @@ function LoginForm() {
       await new Promise(resolve => setTimeout(resolve, 100));
 
       // Redirect based on admin status
-      if (payload.isAdmin || payload.role === 'ADMIN' || payload.role === 'SUPER_ADMIN') {
+      if (isAdmin) {
         console.log('🔑 Admin user detected, redirecting to /admin');
         router.push('/admin');
       } else {
