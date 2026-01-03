@@ -8,7 +8,7 @@ import { PerformanceChart } from '@/components/dashboard/PerformanceChart';
 import { AchievementsDisplay } from '@/components/dashboard/AchievementsDisplay';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Gift, ArrowRight, Lock } from 'lucide-react';
+import { Gift, ArrowRight, Lock, Mail } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -53,6 +53,14 @@ export default function DashboardPage() {
     } catch (error) {
       console.error('Failed to check access:', error);
     }
+  };
+
+  const handleContactInstructor = () => {
+    const subject = encodeURIComponent('Request for Full Access - Free Trial Completed');
+    const body = encodeURIComponent(
+      `Hi,\n\nI've completed the free diagnostic quiz and would like to request full access to the AP Computer Science A practice platform.\n\nMy account details:\nName: ${user?.name || 'N/A'}\nEmail: ${user?.email || 'N/A'}\n\nThank you!`
+    );
+    window.location.href = `mailto:daniel@enginearu.com?subject=${subject}&body=${body}`;
   };
 
   // Layout handles auth checks, so user will always exist here
@@ -124,11 +132,16 @@ export default function DashboardPage() {
                   You've completed the free trial! Get full access to unlimited practice questions, adaptive difficulty, detailed analytics, and exam mode.
                 </p>
                 <Button
+                  onClick={handleContactInstructor}
                   className="bg-white text-orange-600 hover:bg-gray-100"
                 >
+                  <Mail className="mr-2 h-4 w-4" />
                   Contact Instructor for Access
                   <ArrowRight className="ml-2 h-4 w-4" />
+                  daniel@enginearu.com
                 </Button>
+                <br/>
+                
               </div>
             </div>
           </Card>

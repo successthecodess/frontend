@@ -15,7 +15,7 @@ export function Navbar() {
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: 'dashboard/practice', label: 'Practice', icon: Target },
-    { href: '/dashboard/progress', label: 'Progress', icon: TrendingUp },
+    // { href: '/dashboard/progress', label: 'Progress', icon: TrendingUp },
   ];
 
   const isActive = (href: string) => pathname === href;

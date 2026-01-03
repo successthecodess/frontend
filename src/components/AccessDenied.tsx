@@ -79,35 +79,31 @@ export function AccessDenied({
   // Show free trial prompt if user hasn't used it yet
   if (hasUsedTrial === false) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
-        <Card className="max-w-2xl w-full p-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-6 sm:py-8">
+        <Card className="max-w-2xl w-full p-4 sm:p-6 md:p-8">
           {/* Free Trial Offer */}
-          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-8 text-white mb-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-white/20 rounded-lg flex-shrink-0">
-                <Gift className="h-10 w-10" />
+          <div className="bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg p-4 sm:p-6 md:p-8 text-white mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-white/20 rounded-lg flex-shrink-0">
+                <Gift className="h-8 w-8 sm:h-10 sm:w-10" />
               </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-2">
+              <div className="flex-1 w-full">
+                <h2 className="text-xl sm:text-2xl font-bold mb-2">
                   🎉 Try Our Free Diagnostic Quiz!
                 </h2>
-                <p className="text-white/90 mb-4">
+                <p className="text-white/90 mb-3 sm:mb-4 text-sm sm:text-base">
                   Before getting full access, take our free 10-question diagnostic quiz to test your AP Computer Science A knowledge. It's completely free and gives you instant feedback!
                 </p>
-                <div className="flex flex-wrap gap-3 mb-4">
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>✓ 10 questions covering all units</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>✓ Instant feedback & explanations</span>
-                  </div>
-                  <div className="flex items-center gap-2 text-sm">
-                    <span>✓ No commitment required</span>
-                  </div>
+                <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 mb-3 sm:mb-4 text-xs sm:text-sm">
+                  <span>✓ 10 questions covering all units</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span>✓ Instant feedback & explanations</span>
+                  <span className="hidden sm:inline">•</span>
+                  <span>✓ No commitment required</span>
                 </div>
                 <Button
                   onClick={() => router.push('/dashboard/free-trial')}
-                  className="bg-white text-indigo-600 hover:bg-gray-100"
+                  className="bg-white text-indigo-600 hover:bg-gray-100 w-full sm:w-auto"
                   size="lg"
                 >
                   Start Free Trial Now
@@ -119,45 +115,45 @@ export function AccessDenied({
 
           {/* Access Required Info */}
           <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-              <Lock className="h-8 w-8 text-yellow-600" />
+            <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+              <Lock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-600" />
             </div>
             
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
               Full Access Required
             </h3>
             
             {message ? (
-              <p className="text-gray-600 mb-6">{message}</p>
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">{message}</p>
             ) : (
-              <div className="mb-6 space-y-2">
+              <div className="mb-4 sm:mb-6 space-y-2">
                 {feature && (
-                  <p className="text-gray-600">
+                  <p className="text-sm sm:text-base text-gray-600">
                     This page requires: <span className="font-semibold">{feature.replace(/_/g, ' ')}</span>
                   </p>
                 )}
                 {requiredTag && (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     Required tag: <code className="px-2 py-1 bg-gray-100 rounded text-xs">{requiredTag}</code>
                   </p>
                 )}
                 {requiresPremium && (
-                  <p className="text-sm text-orange-600 font-medium">
+                  <p className="text-xs sm:text-sm text-orange-600 font-medium">
                     Premium subscription required
                   </p>
                 )}
               </div>
             )}
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-              <p className="text-sm text-blue-900">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4 mb-4 sm:mb-6">
+              <p className="text-xs sm:text-sm text-blue-900">
                 <strong>After the free trial:</strong> Contact your instructor to get full access with unlimited practice questions, adaptive difficulty, and detailed analytics.
               </p>
             </div>
 
-            <div className="flex gap-3 justify-center">
-              <Link href="/dashboard">
-                <Button variant="outline">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+              <Link href="/dashboard" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Dashboard
                 </Button>
@@ -172,22 +168,22 @@ export function AccessDenied({
   // Show upgrade prompt if trial already used
   if (hasUsedTrial === true) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-8">
-        <Card className="max-w-2xl w-full p-8">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4 py-6 sm:py-8">
+        <Card className="max-w-2xl w-full p-4 sm:p-6 md:p-8">
           {/* Upgrade Prompt */}
-          <div className="bg-gradient-to-r from-yellow-500 to-orange-600 rounded-lg p-8 text-white mb-6">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-white/20 rounded-lg flex-shrink-0">
-                <Crown className="h-10 w-10" />
+          <div className="bg-gradient-to-r from-yellow-500 to-orange-600 rounded-lg p-4 sm:p-6 md:p-8 text-white mb-4 sm:mb-6">
+            <div className="flex flex-col sm:flex-row items-start gap-3 sm:gap-4">
+              <div className="p-2 sm:p-3 bg-white/20 rounded-lg flex-shrink-0">
+                <Crown className="h-8 w-8 sm:h-10 sm:w-10" />
               </div>
-              <div className="flex-1">
-                <h2 className="text-2xl font-bold mb-2">
+              <div className="flex-1 w-full">
+                <h2 className="text-xl sm:text-2xl font-bold mb-2">
                   Ready to Continue Learning?
                 </h2>
-                <p className="text-white/90 mb-4">
+                <p className="text-white/90 mb-3 sm:mb-4 text-sm sm:text-base">
                   You've completed the free trial! Get full access to unlock:
                 </p>
-                <ul className="space-y-2 mb-4 text-sm">
+                <ul className="space-y-1.5 sm:space-y-2 mb-3 sm:mb-4 text-xs sm:text-sm">
                   <li>• Unlimited practice questions across all 10 units</li>
                   <li>• Adaptive difficulty that adjusts to your level</li>
                   <li>• Full-length practice tests with timed mode</li>
@@ -196,52 +192,56 @@ export function AccessDenied({
                 </ul>
                 <Button
                   onClick={handleContactInstructor}
-                  className="bg-white text-orange-600 hover:bg-gray-100"
+                  className="bg-white text-orange-600 hover:bg-gray-100 w-full sm:w-auto text-sm sm:text-base"
                   size="lg"
                 >
                   <Mail className="mr-2 h-4 w-4" />
-                  Contact Instructor for Access
+                  <span className="hidden sm:inline">Contact Instructor for Access</span>
+                  <span className="sm:hidden">Contact Instructor</span>
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Button>
+                <p className="text-xs text-white/80 mt-2">
+                  daniel@enginearu.com
+                </p>
               </div>
             </div>
           </div>
 
           {/* Access Required Info */}
           <div className="text-center">
-            <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-              <Lock className="h-8 w-8 text-yellow-600" />
+            <div className="mx-auto w-12 h-12 sm:w-16 sm:h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-3 sm:mb-4">
+              <Lock className="h-6 w-6 sm:h-8 sm:w-8 text-yellow-600" />
             </div>
             
-            <h3 className="text-xl font-bold text-gray-900 mb-2">
+            <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-2">
               Access Needed
             </h3>
             
             {message ? (
-              <p className="text-gray-600 mb-6">{message}</p>
+              <p className="text-sm sm:text-base text-gray-600 mb-4 sm:mb-6">{message}</p>
             ) : (
-              <div className="mb-6 space-y-2">
+              <div className="mb-4 sm:mb-6 space-y-2">
                 {feature && (
-                  <p className="text-gray-600">
+                  <p className="text-sm sm:text-base text-gray-600">
                     This page requires: <span className="font-semibold">{feature.replace(/_/g, ' ')}</span>
                   </p>
                 )}
                 {requiredTag && (
-                  <p className="text-sm text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     Required tag: <code className="px-2 py-1 bg-gray-100 rounded text-xs">{requiredTag}</code>
                   </p>
                 )}
               </div>
             )}
 
-            <div className="flex gap-3 justify-center">
-              <Link href="/dashboard">
-                <Button variant="outline">
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 justify-center">
+              <Link href="/dashboard" className="w-full sm:w-auto">
+                <Button variant="outline" className="w-full">
                   <ArrowLeft className="mr-2 h-4 w-4" />
                   Back to Dashboard
                 </Button>
               </Link>
-              <Button onClick={handleRefresh} disabled={isRefreshing}>
+              <Button onClick={handleRefresh} disabled={isRefreshing} className="w-full sm:w-auto">
                 <RefreshCw className={`mr-2 h-4 w-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                 {isRefreshing ? 'Refreshing...' : 'Refresh Page'}
               </Button>
@@ -254,35 +254,35 @@ export function AccessDenied({
 
   // Default access denied (loading or no trial status)
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4 py-12">
-      <Card className="max-w-2xl w-full p-8 sm:p-12">
+    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100 flex items-center justify-center px-4 py-6 sm:py-12">
+      <Card className="max-w-2xl w-full p-6 sm:p-8 md:p-12">
         <div className="text-center">
           {/* Icon */}
-          <div className="mx-auto w-20 h-20 bg-red-100 rounded-full flex items-center justify-center mb-6">
-            <Lock className="h-10 w-10 text-red-600" />
+          <div className="mx-auto w-16 h-16 sm:w-20 sm:h-20 bg-red-100 rounded-full flex items-center justify-center mb-4 sm:mb-6">
+            <Lock className="h-8 w-8 sm:h-10 sm:w-10 text-red-600" />
           </div>
 
           {/* Title */}
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold text-gray-900 mb-3 sm:mb-4">
             Access Restricted
           </h1>
 
           {/* Message */}
-          <p className="text-lg text-gray-600 mb-8">
+          <p className="text-base sm:text-lg text-gray-600 mb-6 sm:mb-8">
             {message || "You don't have permission to access this feature yet."}
           </p>
 
           {/* Requirements */}
-          <div className="bg-gray-50 rounded-lg p-6 mb-8 text-left">
+          <div className="bg-gray-50 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8 text-left">
             <div className="space-y-3">
               {requiresPremium && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
-                    <Crown className="h-4 w-4 text-yellow-600" />
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-yellow-100 rounded-lg flex items-center justify-center">
+                    <Crown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-yellow-600" />
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Premium Access</p>
-                    <p className="text-sm text-gray-600">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm sm:text-base">Premium Access</p>
+                    <p className="text-xs sm:text-sm text-gray-600">
                       This feature requires a premium subscription
                     </p>
                   </div>
@@ -290,13 +290,13 @@ export function AccessDenied({
               )}
 
               {feature && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                    <Shield className="h-4 w-4 text-blue-600" />
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                    <Shield className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-blue-600" />
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Feature Access</p>
-                    <p className="text-sm text-gray-600">
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm sm:text-base">Feature Access</p>
+                    <p className="text-xs sm:text-sm text-gray-600 break-words">
                       {feature.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                     </p>
                   </div>
@@ -304,14 +304,14 @@ export function AccessDenied({
               )}
 
               {requiredTag && (
-                <div className="flex items-start gap-3">
-                  <div className="flex-shrink-0 w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                    <Tag className="h-4 w-4 text-purple-600" />
+                <div className="flex items-start gap-2 sm:gap-3">
+                  <div className="flex-shrink-0 w-7 h-7 sm:w-8 sm:h-8 bg-purple-100 rounded-lg flex items-center justify-center">
+                    <Tag className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-purple-600" />
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Required Tag</p>
-                    <p className="text-sm text-gray-600">
-                      <code className="px-2 py-1 bg-gray-100 rounded text-xs">{requiredTag}</code>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-gray-900 text-sm sm:text-base">Required Tag</p>
+                    <p className="text-xs sm:text-sm text-gray-600">
+                      <code className="px-2 py-1 bg-gray-100 rounded text-xs break-all">{requiredTag}</code>
                     </p>
                   </div>
                 </div>
@@ -320,21 +320,21 @@ export function AccessDenied({
           </div>
 
           {/* Contact Section */}
-          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-6 mb-8">
-            <div className="flex items-start gap-3">
+          <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4 sm:p-6 mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row items-start gap-2 sm:gap-3">
               <Mail className="h-5 w-5 text-indigo-600 flex-shrink-0 mt-0.5" />
-              <div className="text-left flex-1">
-                <p className="font-semibold text-indigo-900 mb-1">
+              <div className="text-left flex-1 w-full">
+                <p className="font-semibold text-indigo-900 mb-1 text-sm sm:text-base">
                   Need Access?
                 </p>
-                <p className="text-sm text-indigo-700 mb-3">
+                <p className="text-xs sm:text-sm text-indigo-700 mb-3">
                   Contact your instructor to request access to this feature. They can grant you the necessary permissions from their admin panel.
                 </p>
                 <Button
                   onClick={handleContactInstructor}
                   variant="outline"
                   size="sm"
-                  className="border-indigo-300 text-indigo-700 hover:bg-indigo-100"
+                  className="border-indigo-300 text-indigo-700 hover:bg-indigo-100 w-full sm:w-auto"
                 >
                   <Mail className="mr-2 h-3 w-3" />
                   Email Instructor
@@ -344,11 +344,12 @@ export function AccessDenied({
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3">
+          <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
             <Link href="/dashboard" className="flex-1">
               <Button variant="outline" className="w-full gap-2">
                 <ArrowLeft className="h-4 w-4" />
-                Back to Dashboard
+                <span className="hidden sm:inline">Back to Dashboard</span>
+                <span className="sm:hidden">Dashboard</span>
               </Button>
             </Link>
             <Button 
@@ -362,7 +363,7 @@ export function AccessDenied({
           </div>
 
           {/* Help Text */}
-          <p className="mt-6 text-sm text-gray-500">
+          <p className="mt-4 sm:mt-6 text-xs sm:text-sm text-gray-500">
             If you believe this is an error, please contact support or try refreshing the page.
           </p>
         </div>

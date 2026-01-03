@@ -350,6 +350,7 @@ export default function FreeTrialPage() {
             >
               <Mail className="mr-2 h-4 w-4" />
               Contact Instructor for Full Access
+        
             </Button>
           </div>
         </Card>
