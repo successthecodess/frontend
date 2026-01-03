@@ -5,6 +5,10 @@ import type { Metadata } from 'next';
 import { NetworkStatus } from '@/components/NetworkStatus';
 import { AuthProvider } from '@/contexts/AuthContext';
 
+// Get the base URL
+const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
+                (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
+
 export const metadata: Metadata = {
   title: {
     default: 'ACE AP Computer Science A Exam Prep',
@@ -26,23 +30,22 @@ export const metadata: Metadata = {
   authors: [{ name: 'Daniel - The AP Computer Science Tutor' }],
   creator: 'Daniel - The AP Computer Science Tutor',
   publisher: 'EngiNearU',
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL || 'https://yourdomain.com'
-  ),
+  metadataBase: new URL(baseUrl),
   openGraph: {
     type: 'website',
     locale: 'en_US',
-    url: '/',
+    url: baseUrl,
     siteName: 'ACE AP Computer Science A Exam Prep',
     title: 'ACE AP Computer Science A Exam Prep',
     description:
       'Your one-stop shop for prepping for the AP Computer Science A exam the right way. Adaptive practice tests, instant feedback, and detailed analytics.',
     images: [
       {
-        url: '/og-image.png',
+        url: `${baseUrl}/og-image.png`, // Absolute URL
         width: 1200,
         height: 630,
         alt: 'ACE AP Computer Science A Exam Prep Platform',
+        type: 'image/png',
       },
     ],
   },
@@ -51,7 +54,7 @@ export const metadata: Metadata = {
     title: 'ACE AP Computer Science A Exam Prep',
     description:
       'Your one-stop shop for prepping for the AP Computer Science A exam the right way.',
-    images: ['/og-image.png'],
+    images: [`${baseUrl}/og-image.png`], // Absolute URL
     creator: '@enginearu',
   },
   robots: {
@@ -75,13 +78,6 @@ export const metadata: Metadata = {
       { url: '/apple-touch-icon.png' },
       { url: '/apple-touch-icon-180x180.png', sizes: '180x180', type: 'image/png' },
     ],
-    other: [
-      {
-        rel: 'mask-icon',
-        url: '/safari-pinned-tab.svg',
-        color: '#4f46e5',
-      },
-    ],
   },
   manifest: '/manifest.json',
   applicationName: 'ACE AP CS A',
@@ -94,7 +90,6 @@ export const metadata: Metadata = {
     telephone: false,
   },
   category: 'education',
-  classification: 'Education',
 };
 
 export default function RootLayout({
@@ -106,12 +101,10 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en" suppressHydrationWarning>
         <head>
-          {/* Additional meta tags */}
           <meta name="theme-color" content="#4f46e5" />
           <meta name="color-scheme" content="light" />
           <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5" />
           
-          {/* Preconnect to improve performance */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         </head>
