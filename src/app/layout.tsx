@@ -49,7 +49,7 @@ export const metadata: Metadata = {
     follow: true,
   },
   icons: {
-    icon: '/favicon.ico',
+    icon: '/og-image.png',
     apple: '/apple-touch-icon.jpeg',
   },
   manifest: '/manifest.json',
