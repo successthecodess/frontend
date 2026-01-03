@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import { Suspense } from 'react';
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { setUser } = useAuth(); // Get setUser from context
   const [email, setEmail] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -29,7 +31,7 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      console.log('Attempting login with email:', email);
+      console.log('🔐 Attempting login with email:', email);
 
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/login`,
@@ -41,7 +43,7 @@ function LoginForm() {
       );
 
       const data = await response.json();
-      console.log('Login response:', { success: data.success, hasToken: !!data.token });
+      console.log('📥 Login response:', { success: data.success, hasToken: !!data.token });
 
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
@@ -49,41 +51,43 @@ function LoginForm() {
 
       // Store token in localStorage
       localStorage.setItem('authToken', data.token);
-      console.log('Token stored successfully');
+      console.log('💾 Token stored successfully');
 
-      // Force a small delay to ensure localStorage is written
+      // Decode token to get user info
+      const payload = JSON.parse(atob(data.token.split('.')[1]));
+      console.log('👤 Token payload:', { 
+        userId: payload.userId, 
+        email: payload.email,
+        isAdmin: payload.isAdmin 
+      });
+
+      // Set user in AuthContext immediately
+      const userData = {
+        userId: payload.userId,
+        email: payload.email,
+        name: payload.name,
+        role: payload.role,
+        isAdmin: payload.isAdmin,
+        isStaff: payload.isStaff,
+      };
+      
+      setUser(userData);
+      console.log('✅ User set in context:', userData);
+
+      // Small delay to ensure state updates
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Decode token to check if user is admin
-      const payload = JSON.parse(atob(data.token.split('.')[1]));
-      
-      // Fetch user details to check admin status
-      const userResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${payload.userId}`,
-        {
-          headers: { Authorization: `Bearer ${data.token}` }
-        }
-      );
-
-      if (userResponse.ok) {
-        const userData = await userResponse.json();
-        
-        // Redirect based on admin status
-        if (userData.isAdmin || userData.role === 'ADMIN' || userData.role === 'SUPER_ADMIN') {
-          console.log('Admin user detected, redirecting to admin dashboard...');
-          window.location.href = '/admin';
-        } else {
-          console.log('Regular user, redirecting to student dashboard...');
-          window.location.href = '/dashboard';
-        }
+      // Redirect based on admin status
+      if (payload.isAdmin || payload.role === 'ADMIN' || payload.role === 'SUPER_ADMIN') {
+        console.log('🔑 Admin user detected, redirecting to /admin');
+        router.push('/admin');
       } else {
-        // If we can't fetch user details, default to student dashboard
-        console.log('Could not fetch user details, redirecting to dashboard...');
-        window.location.href = '/dashboard';
+        console.log('👨‍🎓 Regular user, redirecting to /dashboard');
+        router.push('/dashboard');
       }
       
     } catch (err: any) {
-      console.error('Login error:', err);
+      console.error('❌ Login error:', err);
       setError(err.message || 'Login failed. Please try again.');
       setLoading(false);
     }
@@ -169,8 +173,6 @@ function LoginForm() {
             </p>
           </div>
         </div>
-
-      
       </Card>
     </div>
   );
@@ -178,7 +180,11 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full"></div></div>}>
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-8 w-8 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
+      </div>
+    }>
       <LoginForm />
     </Suspense>
   );
