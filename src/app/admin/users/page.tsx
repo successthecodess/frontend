@@ -99,7 +99,7 @@ export default function UsersPage() {
     }
 
     // Second confirmation
-    const finalConfirm = confirm(`FINAL CONFIRMATION\n\nType the user's email to confirm:\n${userEmail}\n\nAre you absolutely sure you want to delete this user?`);
+    const finalConfirm = confirm(`Are you absolutely sure you want to delete this user?`);
     
     if (!finalConfirm) {
       return;
@@ -176,18 +176,7 @@ export default function UsersPage() {
         <p className="text-gray-600 mt-2">Manage users, roles, and permissions</p>
       </div>
 
-      {/* Warning Banner */}
-      <Card className="bg-yellow-50 border-yellow-200 p-4">
-        <div className="flex items-start gap-3">
-          <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
-          <div className="flex-1">
-            <h3 className="text-sm font-semibold text-yellow-900">Important Note</h3>
-            <p className="text-sm text-yellow-800 mt-1">
-              Deleting a user removes them from the portal only. They will remain in Tutor Boss and can sign up again with a fresh account.
-            </p>
-          </div>
-        </div>
-      </Card>
+    
 
       {/* Filters */}
       <Card className="p-4">

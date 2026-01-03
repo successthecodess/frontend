@@ -29,9 +29,9 @@ export const metadata: Metadata = {
     description: 'Your one-stop shop for prepping for the AP Computer Science A exam the right way.',
     images: [
       {
-        url: `${baseUrl}/og-image.jpeg`,
-        // width: 1200,
-        // height: 630,
+        url: `${baseUrl}/og-image.png`,
+        width: 1200,
+        height: 1200,
         alt: 'ACE AP Computer Science A Exam Prep',
         type: 'image/png',
       },
@@ -41,7 +41,7 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     title: 'ACE AP Computer Science A Exam Prep',
     description: 'Your one-stop shop for prepping for the AP Computer Science A exam the right way.',
-    images: [`${baseUrl}/og-image.jpeg`],
+    images: [`${baseUrl}/og-image.png`],
     creator: '@enginearu',
   },
   robots: {
