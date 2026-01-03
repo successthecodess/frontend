@@ -30,8 +30,8 @@ export const metadata: Metadata = {
     images: [
       {
         url: `${baseUrl}/og-image.jpeg`,
-        width: 1200,
-        height: 630,
+        // width: 1200,
+        // height: 630,
         alt: 'ACE AP Computer Science A Exam Prep',
         type: 'image/png',
       },
