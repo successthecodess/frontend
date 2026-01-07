@@ -94,7 +94,7 @@ export default function BulkUploadPage() {
             <ul className="mt-2 space-y-1 text-sm text-blue-700">
               <li>• File must be CSV or Excel (.xlsx)</li>
               <li>• Include headers: Unit Number, Topic Name, Question Text, Options, Correct Answer, Explanation, Difficulty, Type</li>
-              <li>• Difficulty: EASY, MEDIUM, HARD, or EXPERT</li>
+              <li>• Difficulty: EASY, MEDIUM or HARD</li>
               <li>• Type: MULTIPLE_CHOICE, TRUE_FALSE, or CODE_ANALYSIS</li>
               <li>• Correct Answer must match one of the options exactly</li>
             </ul>

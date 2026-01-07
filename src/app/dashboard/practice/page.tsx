@@ -316,10 +316,7 @@ function PracticePageContent() {
 
                   {hasQuestions ? (
                     <div className="mb-3 sm:mb-4 flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                      <FileQuestion className="h-4 w-4 flex-shrink-0" />
-                      <span>
-                        {unit.questionCount} question{unit.questionCount !== 1 ? 's' : ''} available
-                      </span>
+                  
                     </div>
                   ) : (
                     <div className="mb-3 sm:mb-4 rounded-lg bg-yellow-50 p-3 border border-yellow-200">
@@ -361,47 +358,7 @@ function PracticePageContent() {
         </div>
 
         {/* Quick Stats - Responsive */}
-        <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-3">
-          <Card className="p-4 sm:p-6">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="rounded-full bg-indigo-100 p-2 sm:p-3 flex-shrink-0">
-                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-indigo-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm text-gray-600">Total Units</p>
-                <p className="text-xl sm:text-2xl font-bold text-gray-900">{units.length}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4 sm:p-6">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="rounded-full bg-green-100 p-2 sm:p-3 flex-shrink-0">
-                <FileQuestion className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm text-gray-600">Units with Questions</p>
-                <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                  {units.filter(u => (u.questionCount || 0) > 0).length}
-                </p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-4 sm:p-6">
-            <div className="flex items-center gap-3 sm:gap-4">
-              <div className="rounded-full bg-purple-100 p-2 sm:p-3 flex-shrink-0">
-                <Target className="h-5 w-5 sm:h-6 sm:w-6 text-purple-600" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs sm:text-sm text-gray-600">Total Questions</p>
-                <p className="text-xl sm:text-2xl font-bold text-gray-900">
-                  {units.reduce((sum, unit) => sum + (unit.questionCount || 0), 0)}
-                </p>
-              </div>
-            </div>
-          </Card>
-        </div>
+       
       </div>
     </div>
   );

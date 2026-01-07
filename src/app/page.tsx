@@ -136,7 +136,7 @@ export default function LandingPage() {
             <FeatureCard
               icon={<Brain className="h-10 w-10 sm:h-12 sm:w-12 text-indigo-600" />}
               title="Adaptive Learning"
-              description="Questions automatically adjust from EASY to EXPERT based on your performance. Master fundamentals before advancing to complex topics."
+              description="Questions automatically adjust from EASY to HARD based on your performance. Master fundamentals before advancing to complex topics."
               highlight="Smart AI"
               gradient="from-indigo-500 to-purple-500"
             />

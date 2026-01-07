@@ -227,7 +227,7 @@ export default function AnalyticsPage() {
           Performance by Difficulty
         </h2>
         <div className="grid gap-4 md:grid-cols-4">
-          {['EASY', 'MEDIUM', 'HARD', 'EXPERT'].map((difficulty) => {
+          {['EASY', 'MEDIUM', 'HARD'].map((difficulty) => {
             const data = analytics?.byDifficulty?.[difficulty] || { accuracy: 0, attempts: 0 };
             return (
               <div key={difficulty} className="rounded-lg border p-4">

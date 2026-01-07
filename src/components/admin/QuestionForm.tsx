@@ -204,7 +204,7 @@ export function QuestionForm({
                     <SelectItem value="EASY">Easy</SelectItem>
                     <SelectItem value="MEDIUM">Medium</SelectItem>
                     <SelectItem value="HARD">Hard</SelectItem>
-                    <SelectItem value="EXPERT">Expert</SelectItem>
+                  
                   </SelectContent>
                 </Select>
               </div>

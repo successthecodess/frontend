@@ -108,41 +108,16 @@ export function LearningInsightsCard({ progress }: LearningInsightsCardProps) {
     }
     
     if (currentDifficulty === 'HARD') {
-      const correctNeeded = Math.max(0, 3 - consecutiveCorrect);
-      const masteryNeeded = Math.max(0, 70 - masteryLevel);
-      
-      if (correctNeeded > 0 && masteryNeeded > 0) {
-        return {
-          message: `Get ${correctNeeded} more correct in a row and ${masteryNeeded}% more mastery to advance to Expert`,
-          color: 'text-red-700',
-          bgColor: 'bg-red-50',
-          icon: TrendingUp,
-        };
-      } else if (correctNeeded > 0) {
-        return {
-          message: `Get ${correctNeeded} more correct in a row to advance to Expert`,
-          color: 'text-red-700',
-          bgColor: 'bg-red-50',
-          icon: TrendingUp,
-        };
-      } else if (masteryNeeded > 0) {
-        return {
-          message: `Gain ${masteryNeeded}% more mastery to advance to Expert`,
-          color: 'text-red-700',
-          bgColor: 'bg-red-50',
-          icon: TrendingUp,
-        };
-      }
       return {
-        message: 'Keep practicing to advance to Expert!',
+        message: 'You\'re at the highest level! Excellent work! 🌟',
         color: 'text-red-700',
         bgColor: 'bg-red-50',
-        icon: TrendingUp,
+        icon: Award,
       };
     }
     
     return {
-      message: 'You\'re at the highest level! Excellent work! 🌟',
+      message: 'Keep up the great work! 🌟',
       color: 'text-purple-700',
       bgColor: 'bg-purple-50',
       icon: Award,
@@ -159,8 +134,6 @@ export function LearningInsightsCard({ progress }: LearningInsightsCardProps) {
       case 'MEDIUM':
         return 'text-yellow-600 bg-yellow-100';
       case 'HARD':
-        return 'text-orange-600 bg-orange-100';
-      case 'EXPERT':
         return 'text-red-600 bg-red-100';
       default:
         return 'text-gray-600 bg-gray-100';
@@ -208,7 +181,7 @@ export function LearningInsightsCard({ progress }: LearningInsightsCardProps) {
               style={{ width: `${progress.masteryLevel}%` }}
             />
           </div>
-          {progress.masteryLevel < 70 && (
+          {progress.masteryLevel < 70 && progress.currentDifficulty !== 'HARD' && (
             <p className="mt-1 text-xs text-gray-500">
               Need {70 - progress.masteryLevel}% more to advance
             </p>
@@ -231,8 +204,8 @@ export function LearningInsightsCard({ progress }: LearningInsightsCardProps) {
           </div>
         </div>
 
-        {/* Progress Requirements Info */}
-        {progress.totalAttempts >= 3 && progress.currentDifficulty !== 'EXPERT' && (
+        {/* Progress Requirements Info - Only show if not at max level */}
+        {progress.totalAttempts >= 3 && progress.currentDifficulty !== 'HARD' && (
           <div className="rounded-lg bg-gray-50 p-3 text-xs text-gray-600">
             <p className="font-semibold text-gray-700 mb-1">To advance, you need:</p>
             <ul className="space-y-1 list-disc list-inside">
@@ -246,6 +219,21 @@ export function LearningInsightsCard({ progress }: LearningInsightsCardProps) {
                 5 total attempts {progress.totalAttempts >= 5 ? '✓' : `(${progress.totalAttempts}/5)`}
               </li>
             </ul>
+          </div>
+        )}
+
+        {/* Mastery Achievement Message for HARD level */}
+        {progress.currentDifficulty === 'HARD' && progress.masteryLevel >= 85 && (
+          <div className="rounded-lg bg-gradient-to-r from-yellow-50 to-orange-50 border-2 border-yellow-200 p-4">
+            <div className="flex items-center gap-3">
+              <Award className="h-6 w-6 text-yellow-600 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-bold text-yellow-900">Master Level!</p>
+                <p className="text-xs text-yellow-700 mt-1">
+                  You've achieved mastery of this unit at the highest difficulty! 🏆
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

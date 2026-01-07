@@ -27,7 +27,7 @@ export interface Question {
   options: string[];
   correctAnswer: string;
   explanation: string;
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT';
+  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
   type: 'MULTIPLE_CHOICE' | 'TRUE_FALSE' | 'CODE_ANALYSIS' | 'FREE_RESPONSE' | 'CODE_COMPLETION';
   approved: boolean;
   aiGenerated: boolean;
@@ -68,7 +68,7 @@ export interface QuestionResponse {
 }
 
 export interface ProgressMetrics {
-  currentDifficulty: 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT';
+  currentDifficulty: 'EASY' | 'MEDIUM' | 'HARD';
   consecutiveCorrect: number;
   consecutiveWrong: number;
   totalAttempts: number;
@@ -83,7 +83,7 @@ export interface Progress {
   userId: string;
   unitId: string;
   topicId?: string;
-  currentDifficulty: 'EASY' | 'MEDIUM' | 'HARD' | 'EXPERT';
+  currentDifficulty: 'EASY' | 'MEDIUM' | 'HARD';
   consecutiveCorrect: number;
   consecutiveWrong: number;
   totalAttempts: number;
@@ -146,7 +146,6 @@ export interface QuestionCounts {
   easy: number;
   medium: number;
   hard: number;
-  expert: number;
 }
 
 export interface AdminStats {
