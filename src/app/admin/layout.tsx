@@ -14,7 +14,9 @@ import {
   X,
   Shield,
   Upload,
-  Gift
+  Gift,
+  FileText,
+  GraduationCap
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -90,9 +92,11 @@ export default function AdminLayout({
     { name: 'Admins', href: '/admin/admins', icon: Shield },
     { name: 'Feature Flags', href: '/admin/features', icon: Flag },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
+    { name: 'Exam Bank', href: '/admin/exam-bank', icon: GraduationCap },
 {
   name: 'Free Trial',  href: '/admin/free-trial', icon: Gift,
 },
+
     { name: 'Bulk Upload', href: '/admin/upload', icon: Upload },
     { name: 'Questions', href: '/admin/questions', icon: Settings },
     { name: 'GHL Setup', href: '/admin/ghl-setup', icon: Settings },

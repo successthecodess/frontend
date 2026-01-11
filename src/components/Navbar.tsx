@@ -1,7 +1,7 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { Code, Menu, LogOut, User, X, Home, Target, TrendingUp } from 'lucide-react';
+import { Code, Menu, LogOut, User, X, Home, Target, TrendingUp, Book, GraduationCap } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Button } from '@/components/ui/button';
@@ -15,7 +15,8 @@ export function Navbar() {
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: 'dashboard/practice', label: 'Practice', icon: Target },
-    // { href: '/dashboard/progress', label: 'Progress', icon: TrendingUp },
+    { href: 'full-exam', label: 'Full Exam', icon: GraduationCap },
+    
   ];
 
   const isActive = (href: string) => pathname === href;
