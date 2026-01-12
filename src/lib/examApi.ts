@@ -362,7 +362,29 @@ async importMCQQuestions(questionIds: string[]) {
     'importMCQQuestions'
   );
 },
+// Add this method to the examApi object (after getExamResults)
+async requestFRQReview(examAttemptId: string, frqNumber: number) {
+  // Get user info from localStorage
+  const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null;
+  const userName = typeof window !== 'undefined' ? localStorage.getItem('userName') : null;
+  const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
 
+  const url = `${API_BASE_URL}/full-exam/${examAttemptId}/request-review`;
+  return handleResponse(
+    url,
+    {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        frqNumber,
+        userId,
+        userEmail,
+        userName,
+      }),
+    },
+    'requestFRQReview'
+  );
+},
 // Get available practice questions for import
 async getAvailablePracticeQuestions(unitId?: string) {
   const params = unitId ? `?unitId=${unitId}` : '';

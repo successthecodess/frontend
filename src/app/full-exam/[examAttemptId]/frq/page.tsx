@@ -22,6 +22,8 @@ import { examApi } from '@/lib/examApi';
 import type { FullExamAttempt, PartResponse } from '@/types/exam';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 export default function FRQExamPage() {
   const params = useParams();
@@ -248,6 +250,66 @@ export default function FRQExamPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Markdown components for rendering
+  const markdownComponents = {
+    code: ({node, inline, className, children, ...props}: any) => {
+      const match = /language-(\w+)/.exec(className || '');
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={match[1]}
+          PreTag="div"
+          customStyle={{
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            fontSize: '0.875rem',
+            marginTop: '0.75rem',
+            marginBottom: '0.75rem',
+          }}
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props}>
+          {children}
+        </code>
+      );
+    },
+    p: ({children}: any) => (
+      <p className="mb-3 text-gray-900 leading-relaxed last:mb-0">{children}</p>
+    ),
+    table: ({children}: any) => (
+      <div className="overflow-x-auto my-4">
+        <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
+          {children}
+        </table>
+      </div>
+    ),
+    thead: ({children}: any) => (
+      <thead className="bg-gray-100">{children}</thead>
+    ),
+    th: ({children}: any) => (
+      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border border-gray-300">
+        {children}
+      </th>
+    ),
+    td: ({children}: any) => (
+      <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
+        {children}
+      </td>
+    ),
+    ul: ({children}: any) => (
+      <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>
+    ),
+    ol: ({children}: any) => (
+      <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>
+    ),
+    li: ({children}: any) => (
+      <li className="text-gray-900">{children}</li>
+    ),
+  };
+
   if (loading || !examAttempt) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center">
@@ -332,7 +394,7 @@ export default function FRQExamPage() {
               </div>
               {saving && (
                 <p className="text-xs text-blue-600 flex items-center gap-1 justify-end font-medium">
-                  <div className="animate-spin h-3 w-3 border-2 border-blue-600 border-t-transparent rounded-full" />
+              
                   Saving...
                 </p>
               )}
@@ -438,8 +500,11 @@ export default function FRQExamPage() {
                   </div>
                   <div className="flex-1">
                     <h3 className="font-bold text-gray-900 text-lg mb-3">Question Context</h3>
-                    <div className="prose prose-sm max-w-none bg-white/60 rounded-lg p-4 backdrop-blur-sm">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    <div className="prose prose-lg max-w-none bg-white/60 rounded-lg p-4 backdrop-blur-sm">
+                      <ReactMarkdown 
+                        remarkPlugins={[remarkGfm]}
+                        components={markdownComponents}
+                      >
                         {currentFRQ.question.promptText}
                       </ReactMarkdown>
                     </div>
@@ -453,9 +518,17 @@ export default function FRQExamPage() {
                       <Code className="h-4 w-4" />
                       Class Information:
                     </p>
-                    <pre className="font-mono text-xs text-gray-900 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border border-gray-200">
+                    <SyntaxHighlighter
+                      language="java"
+                      style={vscDarkPlus}
+                      customStyle={{
+                        borderRadius: '0.5rem',
+                        padding: '1rem',
+                        fontSize: '0.875rem',
+                      }}
+                    >
                       {currentFRQ.question.starterCode}
-                    </pre>
+                    </SyntaxHighlighter>
                   </div>
                 )}
 
@@ -501,8 +574,11 @@ export default function FRQExamPage() {
               </div>
 
               <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 border-2 border-gray-200 shadow-inner">
-                <div className="prose prose-sm max-w-none text-gray-900">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                <div className="prose prose-lg max-w-none">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
                     {currentPart ? currentPart.promptText : currentFRQ.question.promptText}
                   </ReactMarkdown>
                 </div>

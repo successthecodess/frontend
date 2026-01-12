@@ -16,6 +16,10 @@ import {
 } from 'lucide-react';
 import { examApi } from '@/lib/examApi';
 import type { FullExamAttempt, ExamAttemptMCQ } from '@/types/exam';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 export default function FullExamPage() {
   const params = useParams();
@@ -36,6 +40,13 @@ export default function FullExamPage() {
   useEffect(() => {
     loadExamAttempt();
   }, [examAttemptId]);
+
+  // Handle navigation to FRQ section
+  useEffect(() => {
+    if (currentSection === 'FRQ') {
+      router.push(`/full-exam/${examAttemptId}/frq`);
+    }
+  }, [currentSection, examAttemptId, router]);
 
   // Timer
   useEffect(() => {
@@ -141,6 +152,57 @@ export default function FullExamPage() {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  // Markdown components for rendering
+  const markdownComponents = {
+    code: ({node, inline, className, children, ...props}: any) => {
+      const match = /language-(\w+)/.exec(className || '');
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={match[1]}
+          PreTag="div"
+          customStyle={{
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            fontSize: '0.875rem',
+            marginTop: '0.75rem',
+            marginBottom: '0.75rem',
+          }}
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props}>
+          {children}
+        </code>
+      );
+    },
+    p: ({children}: any) => (
+      <p className="mb-4 text-gray-900 leading-relaxed last:mb-0">{children}</p>
+    ),
+    table: ({children}: any) => (
+      <div className="overflow-x-auto my-4">
+        <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
+          {children}
+        </table>
+      </div>
+    ),
+    thead: ({children}: any) => (
+      <thead className="bg-gray-100">{children}</thead>
+    ),
+    th: ({children}: any) => (
+      <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border border-gray-300">
+        {children}
+      </th>
+    ),
+    td: ({children}: any) => (
+      <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
+        {children}
+      </td>
+    ),
+  };
+
   if (loading || !examAttempt) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -149,9 +211,16 @@ export default function FullExamPage() {
     );
   }
 
+  // Show loading state while navigating to FRQ
   if (currentSection === 'FRQ') {
-    router.push(`/full-exam/${examAttemptId}/frq`);
-    return null;
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Moving to FRQ section...</p>
+        </div>
+      </div>
+    );
   }
 
   const currentQuestion = examAttempt.mcqResponses[currentMCQIndex];
@@ -288,14 +357,19 @@ export default function FullExamPage() {
                 </Button>
               </div>
 
-              {/* Question Text */}
-              <div className="mb-6">
-                <p className="text-lg text-gray-900 whitespace-pre-wrap">
-                  {currentQuestion.question.questionText}
-                </p>
+              {/* Question Text with Markdown Support */}
+              <div className="mb-8">
+                <div className="prose prose-lg max-w-none">
+                  <ReactMarkdown 
+                    remarkPlugins={[remarkGfm]}
+                    components={markdownComponents}
+                  >
+                    {currentQuestion.question.questionText}
+                  </ReactMarkdown>
+                </div>
               </div>
 
-              {/* Answer Options */}
+              {/* Answer Options with Markdown Support */}
               <div className="space-y-3">
                 {currentQuestion.question.options?.map((option: string, index: number) => {
                   const letter = String.fromCharCode(65 + index); // A, B, C, D
@@ -319,7 +393,14 @@ export default function FullExamPage() {
                         }`}>
                           {letter}
                         </div>
-                        <p className="flex-1 text-gray-900 pt-1">{option}</p>
+                        <div className="flex-1 pt-1 prose max-w-none">
+                          <ReactMarkdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={markdownComponents}
+                          >
+                            {option}
+                          </ReactMarkdown>
+                        </div>
                       </div>
                     </button>
                   );
