@@ -1,24 +1,23 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { useRouter } from 'next/navigation';
-import { TokenManager } from '@/utils/tokenManager';
+import { useRouter, usePathname } from 'next/navigation';
 
 interface User {
   userId: string;
   email: string;
-  name?: string;
+  name: string;
   role?: string;
   isAdmin?: boolean;
   isStaff?: boolean;
+  ghlTags?: string[];
 }
 
 interface AuthContextType {
   user: User | null;
-  isLoading: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  logout: () => Promise<void>;
   setUser: (user: User | null) => void;
+  logout: () => void;
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -27,117 +26,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
 
+  // Initialize auth from token
   useEffect(() => {
-    loadUser();
+    const initAuth = async () => {
+      try {
+        const token = localStorage.getItem('authToken');
+        
+        if (!token) {
+          setIsLoading(false);
+          return;
+        }
+
+        // Verify token is still valid
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/me`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
+        );
+
+        if (response.ok) {
+          const userData = await response.json();
+          setUser({
+            userId: userData.id,
+            email: userData.email,
+            name: userData.name,
+            role: userData.role,
+            isAdmin: userData.isAdmin,
+            isStaff: userData.isStaff,
+            ghlTags: userData.ghlTags,
+          });
+        } else {
+          // Token invalid, clear it
+          localStorage.removeItem('authToken');
+        }
+      } catch (error) {
+        console.error('Auth initialization failed:', error);
+        localStorage.removeItem('authToken');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initAuth();
   }, []);
 
-  const loadUser = async () => {
-    if (typeof window === 'undefined') {
-      setIsLoading(false);
-      return;
-    }
-
-    try {
-      const token = TokenManager.getAccessToken();
-      
-      if (!token) {
-        setIsLoading(false);
-        return;
-      }
-
-      // Verify token is still valid by making a request
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setUser(data.user);
-      } else if (response.status === 401) {
-        // Token expired, try to refresh
-        const newToken = await TokenManager.refreshAccessToken();
-        
-        if (newToken) {
-          // Retry with new token
-          const retryResponse = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/me`, {
-            headers: {
-              'Authorization': `Bearer ${newToken}`,
-            },
-          });
-          
-          if (retryResponse.ok) {
-            const data = await retryResponse.json();
-            setUser(data.user);
-          } else {
-            TokenManager.clearTokens();
-          }
-        } else {
-          TokenManager.clearTokens();
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load user:', error);
-      TokenManager.clearTokens();
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const login = async (email: string, password: string) => {
-    try {
-      const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-      
-      if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
-      }
-
-      // Store both tokens
-      TokenManager.setTokens(data.accessToken, data.refreshToken);
-      setUser(data.user);
-      
-      console.log('✅ Login successful:', data.user.email);
-    } catch (error: any) {
-      console.error('❌ Login failed:', error.message);
-      throw error;
-    }
-  };
-
-  const logout = async () => {
-    try {
-      const refreshToken = TokenManager.getRefreshToken();
-      const accessToken = TokenManager.getAccessToken();
-      
-      if (refreshToken && accessToken) {
-        // Notify server to revoke tokens
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL}/auth/logout`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${accessToken}`,
-          },
-          body: JSON.stringify({ refreshToken }),
-        }).catch(err => console.warn('Logout request failed:', err));
-      }
-    } finally {
-      // Always clear tokens and redirect
-      TokenManager.clearTokens();
-      setUser(null);
-      router.push('/login');
-      console.log('✅ Logged out');
-    }
+  const logout = () => {
+    localStorage.removeItem('authToken');
+    setUser(null);
+    router.push('/login');
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout, setUser }}>
+    <AuthContext.Provider value={{ user, setUser, logout, isLoading }}>
       {children}
     </AuthContext.Provider>
   );

@@ -284,7 +284,7 @@ export default function FRQExamPage() {
 
       if (timerRef.current) clearInterval(timerRef.current);
 
-      router.push(`/full-exam/${examAttemptId}/results`);
+      router.push(`/dashboard/full-exam/${examAttemptId}/results`);
     } catch (error) {
       console.error('Failed to submit exam:', error);
       alert('Failed to submit exam. Please try again.');

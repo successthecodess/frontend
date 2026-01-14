@@ -15,7 +15,7 @@ export function Navbar() {
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: 'dashboard/practice', label: 'Practice', icon: Target },
-    { href: 'full-exam', label: 'Full Exam', icon: GraduationCap },
+    { href: '/dashboard/full-exam', label: 'Full Exam', icon: GraduationCap },
     
   ];
 

@@ -10,11 +10,22 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Gift, ArrowRight, Lock, Mail } from 'lucide-react';
 
+interface UserAccess {
+  hasFreeTrialAccess: boolean;
+  hasBasicAccess: boolean;
+  hasFullAccess: boolean;
+  hasPremiumAccess: boolean;
+  canAccessPractice: boolean;
+  canAccessTests: boolean;
+  canAccessCourse: boolean;
+  accessTier: 'none' | 'trial' | 'basic' | 'full' | 'premium';
+}
+
 export default function DashboardPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [hasUsedTrial, setHasUsedTrial] = useState<boolean | null>(null);
-  const [hasFullAccess, setHasFullAccess] = useState(false);
+  const [userAccess, setUserAccess] = useState<UserAccess | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (user) {
@@ -28,46 +39,39 @@ export default function DashboardPage() {
     try {
       const token = localStorage.getItem('authToken');
       
-      // Check free trial status
-      const trialResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/free-trial/status/${user.userId}`,
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/my-access`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
-      const trialData = await trialResponse.json();
-      setHasUsedTrial(trialData.hasUsedFreeTrial);
 
-      // Check if user has full access (course + practice test tags)
-      const userResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/me`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
-      );
-      const userData = await userResponse.json();
-      const tags = userData.ghlTags || [];
-      const hasCourse = tags.includes('course-apcs-a');
-      const hasPractice = tags.includes('apcs-test-access');
-      setHasFullAccess(hasCourse && hasPractice);
+      if (response.ok) {
+        const accessData = await response.json();
+        setUserAccess(accessData);
+      }
     } catch (error) {
       console.error('Failed to check access:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
   const handleContactInstructor = () => {
-    const subject = encodeURIComponent('Request for Full Access - Free Trial Completed');
+    const subject = encodeURIComponent('Request for Full Access');
     const body = encodeURIComponent(
-      `Hi,\n\nI've completed the free diagnostic quiz and would like to request full access to the AP Computer Science A practice platform.\n\nMy account details:\nName: ${user?.name || 'N/A'}\nEmail: ${user?.email || 'N/A'}\n\nThank you!`
+      `Hi,\n\nI would like to request full access to the AP Computer Science A practice platform.\n\nMy account details:\nName: ${user?.name || 'N/A'}\nEmail: ${user?.email || 'N/A'}\n\nThank you!`
     );
     window.location.href = `mailto:daniel@enginearu.com?subject=${subject}&body=${body}`;
   };
 
-  // Layout handles auth checks, so user will always exist here
-  if (!user) return null;
+  if (!user || loading) return null;
 
-  const showFreeTrialPrompt = hasUsedTrial === false && !hasFullAccess;
-  const showTrialCompletePrompt = hasUsedTrial === true && !hasFullAccess;
+  // Show free trial prompt only if they have NO access (not even trial used)
+  const showFreeTrialPrompt = userAccess && userAccess.accessTier === 'none' && userAccess.hasFreeTrialAccess;
+  
+  // Show trial complete prompt if they used trial but don't have basic access
+  const showTrialCompletePrompt = userAccess && userAccess.accessTier === 'trial' && !userAccess.hasBasicAccess;
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
@@ -80,9 +84,14 @@ export default function DashboardPage() {
           <p className="text-sm sm:text-base text-gray-600">
             Track your progress and achievements
           </p>
+          {userAccess && (
+            <div className="inline-flex items-center gap-2 px-3 py-1 bg-indigo-100 text-indigo-700 rounded-full text-sm font-medium">
+              Access Level: {userAccess.accessTier.toUpperCase()}
+            </div>
+          )}
         </div>
 
-        {/* Free Trial Prompt - Not Used Yet */}
+        {/* Free Trial Prompt - Only for users with NO access */}
         {showFreeTrialPrompt && (
           <Card className="bg-gradient-to-r from-indigo-500 to-purple-600 p-6 sm:p-8 text-white border-0">
             <div className="flex items-start gap-4">
@@ -138,10 +147,7 @@ export default function DashboardPage() {
                   <Mail className="mr-2 h-4 w-4" />
                   Contact Instructor for Access
                   <ArrowRight className="ml-2 h-4 w-4" />
-                  daniel@enginearu.com
                 </Button>
-                <br/>
-                
               </div>
             </div>
           </Card>

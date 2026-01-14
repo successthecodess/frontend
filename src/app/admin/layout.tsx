@@ -32,23 +32,26 @@ export default function AdminLayout({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
+    // Skip auth check for login page
+    if (pathname === '/admin/login') {
+      setLoading(false);
+      return;
+    }
+    
     checkAuth();
-  }, []);
+  }, [pathname]);
 
   const checkAuth = async () => {
     try {
       const token = localStorage.getItem('authToken');
       if (!token) {
-        router.push('/login');
+        router.push('/admin/login'); // Changed from /login to /admin/login
         return;
       }
 
-      // Decode JWT to get user info
-      const payload = JSON.parse(atob(token.split('.')[1]));
-      
-      // Verify user is admin
+      // Verify token by fetching user info
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${payload.userId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/me`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }
@@ -62,7 +65,7 @@ export default function AdminLayout({
       
       if (!userData.isAdmin && userData.role !== 'ADMIN') {
         alert('Access denied. Admin privileges required.');
-        router.push('/dashboard'); // Regular students go to /dashboard
+        router.push('/dashboard');
         return;
       }
 
@@ -70,14 +73,20 @@ export default function AdminLayout({
       setLoading(false);
     } catch (error) {
       console.error('Auth check failed:', error);
-      router.push('/login');
+      localStorage.removeItem('authToken');
+      router.push('/admin/login'); // Changed from /login to /admin/login
     }
   };
 
   const handleLogout = () => {
     localStorage.removeItem('authToken');
-    router.push('/login');
+    router.push('/admin/login'); // Changed from /login to /admin/login
   };
+
+  // Don't show loading on login page
+  if (pathname === '/admin/login') {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
@@ -94,11 +103,8 @@ export default function AdminLayout({
     { name: 'Feature Flags', href: '/admin/features', icon: Flag },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
     { name: 'Exam Bank', href: '/admin/exam-bank', icon: GraduationCap },
-     { name: 'Metrics', href: '/admin/full-exams', icon: BarChart },
-{
-  name: 'Free Trial',  href: '/admin/free-trial', icon: Gift,
-},
-
+    { name: 'Metrics', href: '/admin/full-exams', icon: BarChart },
+    { name: 'Free Trial', href: '/admin/free-trial', icon: Gift },
     { name: 'Bulk Upload', href: '/admin/upload', icon: Upload },
     { name: 'Questions', href: '/admin/questions', icon: Settings },
     { name: 'GHL Setup', href: '/admin/ghl-setup', icon: Settings },

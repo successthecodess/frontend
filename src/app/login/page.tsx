@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Code, Mail, Loader2 } from 'lucide-react';
+import { Code, Mail, Lock, Loader2 } from 'lucide-react';
 import { Suspense } from 'react';
 
 function LoginForm() {
@@ -14,11 +14,11 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { setUser } = useAuth();
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    // Pre-fill email if coming from signup
     const emailParam = searchParams.get('email');
     if (emailParam) {
       setEmail(emailParam);
@@ -31,101 +31,39 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      console.log('🔐 Attempting login with email:', email);
-
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/login`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email }),
+          body: JSON.stringify({ email, password }),
         }
       );
 
       const data = await response.json();
-      console.log('📥 Login response:', { success: data.success, hasToken: !!data.token });
 
       if (!response.ok) {
         throw new Error(data.error || 'Login failed');
       }
 
-      // Store token in localStorage
+      // Store token
       localStorage.setItem('authToken', data.token);
-      console.log('💾 Token stored successfully');
 
-      // Decode token to get user info
-      const payload = JSON.parse(atob(data.token.split('.')[1]));
-      console.log('👤 Token payload:', { 
-        userId: payload.userId, 
-        email: payload.email 
-      });
+      // Set user in context
+      setUser(data.user);
 
-      // Fetch FULL user details from the API to get correct admin status
-      console.log('📡 Fetching user details to check admin status...');
-      const userResponse = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/admin/users/${payload.userId}`,
-        {
-          headers: { Authorization: `Bearer ${data.token}` }
-        }
-      );
-
-      let isAdmin = false;
-      let userData = {
-        userId: payload.userId,
-        email: payload.email,
-        name: payload.name,
-        role: payload.role,
-        isAdmin: payload.isAdmin,
-        isStaff: payload.isStaff,
-      };
-
-      if (userResponse.ok) {
-        const fullUserData = await userResponse.json();
-        console.log('✅ Full user data received:', {
-          isAdmin: fullUserData.isAdmin,
-          role: fullUserData.role
-        });
-        
-        // Check if user is admin
-        isAdmin = fullUserData.isAdmin || 
-                  fullUserData.role === 'ADMIN' || 
-                  fullUserData.role === 'SUPER_ADMIN';
-
-        // Update userData with full details
-        userData = {
-          userId: fullUserData.id || payload.userId,
-          email: fullUserData.email || payload.email,
-          name: fullUserData.name || payload.name,
-          role: fullUserData.role,
-          isAdmin: fullUserData.isAdmin,
-          isStaff: fullUserData.isStaff,
-        };
-      } else {
-        console.warn('⚠️ Could not fetch full user details, using token payload');
-        // Fallback to token payload
-        isAdmin = payload.isAdmin || 
-                  payload.role === 'ADMIN' || 
-                  payload.role === 'SUPER_ADMIN';
-      }
-
-      // Set user in AuthContext
-      setUser(userData);
-      console.log('✅ User set in context:', userData);
-
-      // Small delay to ensure state updates
+      // Small delay for state update
       await new Promise(resolve => setTimeout(resolve, 100));
 
-      // Redirect based on admin status
-      if (isAdmin) {
-        console.log('🔑 Admin user detected, redirecting to /admin');
+      // Redirect based on role
+      if (data.user.isAdmin) {
         router.push('/admin');
       } else {
-        console.log('👨‍🎓 Regular user, redirecting to /dashboard');
         router.push('/dashboard');
       }
       
     } catch (err: any) {
-      console.error('❌ Login error:', err);
+      console.error('Login error:', err);
       setError(err.message || 'Login failed. Please try again.');
       setLoading(false);
     }
@@ -140,7 +78,7 @@ function LoginForm() {
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Welcome Back!</h1>
           <p className="mt-2 text-sm sm:text-base text-gray-600">
-            Log in with your Tutor Boss email
+            Log in to your account
           </p>
         </div>
 
@@ -167,9 +105,25 @@ function LoginForm() {
                 disabled={loading}
               />
             </div>
-            <p className="mt-2 text-xs text-gray-500">
-              Use the same email registered in Tutor Boss
-            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Password
+            </label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
+                placeholder="••••••••"
+                required
+                disabled={loading}
+                minLength={8}
+              />
+            </div>
           </div>
 
           <Button
@@ -184,7 +138,7 @@ function LoginForm() {
                 Logging in...
               </>
             ) : (
-              'Continue'
+              'Log In'
             )}
           </Button>
         </form>
@@ -201,7 +155,7 @@ function LoginForm() {
 
           <div className="mt-6 text-center">
             <p className="text-xs sm:text-sm text-gray-600">
-              Don't have a Tutor Boss account?{' '}
+              Don't have an account?{' '}
               <Link
                 href="/signup"
                 className="font-medium text-indigo-600 hover:text-indigo-700"

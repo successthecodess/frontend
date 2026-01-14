@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
@@ -12,7 +12,10 @@ import {
   Code, 
   AlertCircle,
   CheckCircle,
-  ArrowRight
+  ArrowRight,
+  Lock,
+  Star,
+  TrendingUp
 } from 'lucide-react';
 import { examApi } from '@/lib/examApi';
 
@@ -20,7 +23,43 @@ export default function FullExamStartPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
   const [agreedToRules, setAgreedToRules] = useState(false);
+
+  useEffect(() => {
+    checkAccess();
+  }, []);
+
+  const checkAccess = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        setHasAccess(false);
+        setCheckingAccess(false);
+        return;
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/my-access`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setHasAccess(data.canAccessPremiumExam || false);
+      } else {
+        setHasAccess(false);
+      }
+    } catch (error) {
+      console.error('Failed to check access:', error);
+      setHasAccess(false);
+    } finally {
+      setCheckingAccess(false);
+    }
+  };
 
   const handleStartExam = async () => {
     if (!user || !agreedToRules) return;
@@ -32,7 +71,7 @@ export default function FullExamStartPage() {
       const { examAttemptId } = response.data;
 
       // Navigate to exam
-      router.push(`/full-exam/${examAttemptId}`);
+      router.push(`/dashboard/full-exam/${examAttemptId}`);
     } catch (error: any) {
       console.error('Failed to start exam:', error);
       alert(error.message || 'Failed to start exam. Please try again.');
@@ -40,9 +79,165 @@ export default function FullExamStartPage() {
     }
   };
 
+  // Loading state
+  if (checkingAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  // No Access - Show Premium Upgrade Page
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-yellow-50 to-red-50 py-12">
+        <div className="container mx-auto max-w-4xl px-4">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-500 to-red-600 rounded-full mb-4">
+              <Lock className="h-10 w-10 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Premium Full Exam
+            </h1>
+            <h2 className="text-xl text-gray-600">
+              Official AP CS A Exam Simulation
+            </h2>
+          </div>
+
+          {/* Premium Features */}
+          <Card className="p-8 mb-6 border-2 border-orange-300 bg-gradient-to-br from-white to-orange-50">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full font-bold mb-4">
+                <Star className="h-5 w-5" />
+                PREMIUM ACCESS REQUIRED
+              </div>
+              <p className="text-gray-700">
+                This is our most comprehensive exam preparation tool. Get the full AP experience!
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-orange-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Full 3-Hour Exam</p>
+                  <p className="text-sm text-gray-600">42 MCQ + 4 FRQ questions, exactly like the real AP exam</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-orange-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">AP Score Prediction</p>
+                  <p className="text-sm text-gray-600">Get your predicted score (1-5) based on official scoring guidelines</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-orange-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Detailed Performance Report</p>
+                  <p className="text-sm text-gray-600">Unit-by-unit breakdown with strengths and weaknesses</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-orange-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Wrong Answer Analysis</p>
+                  <p className="text-sm text-gray-600">Detailed explanations for every question you miss</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-orange-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Personalized Study Plan</p>
+                  <p className="text-sm text-gray-600">Get custom recommendations based on your performance</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-orange-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Unlimited Retakes</p>
+                  <p className="text-sm text-gray-600">Practice as many times as you need to improve</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-orange-100 to-red-100 rounded-lg p-6 border-2 border-orange-300">
+              <div className="flex items-start gap-3">
+                <Star className="h-6 w-6 text-orange-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-gray-900 mb-2">Why Premium?</p>
+                  <p className="text-sm text-gray-700">
+                    The Premium Full Exam is designed to give you the most realistic AP exam experience possible. 
+                    With authentic timing, official question formats, and comprehensive scoring, you'll know exactly 
+                    what to expect on test day. Our detailed analytics help you focus your studying where it matters most.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Try Free Diagnostic */}
+          <Card className="p-8 mb-6 border-2 border-indigo-300 bg-gradient-to-br from-white to-indigo-50">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-indigo-100 rounded-full mb-4">
+                <TrendingUp className="h-8 w-8 text-indigo-600" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Not Ready for the Full Exam Yet?
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Start with our free diagnostic test to assess your current level and identify areas for improvement.
+              </p>
+              <Button
+                onClick={() => router.push('/dashboard/free-trial')}
+                size="lg"
+                variant="outline"
+                className="border-2 border-indigo-500 text-indigo-600 hover:bg-indigo-50"
+              >
+                <GraduationCap className="h-5 w-5 mr-2" />
+                Take Free Diagnostic Test
+              </Button>
+            </div>
+          </Card>
+
+          {/* Contact for Access */}
+          <Card className="p-8 bg-gray-50">
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Want Premium Access?
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Contact your instructor or course administrator to get premium access to the full exam.
+              </p>
+              <p className="text-sm text-gray-500">
+                If you believe you should have access, please contact support or check with your instructor.
+              </p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Has Access - Show Normal Exam Start Page
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12">
       <div className="container mx-auto max-w-4xl px-4">
+        {/* Premium Badge */}
+        <div className="text-center mb-4">
+          <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-500 to-red-500 text-white rounded-full font-bold text-sm">
+            <Star className="h-4 w-4" />
+            PREMIUM EXAM
+          </div>
+        </div>
+
         {/* Header */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-indigo-600 to-purple-600 rounded-full mb-4">
@@ -230,7 +425,7 @@ export default function FullExamStartPage() {
             onClick={handleStartExam}
             disabled={!agreedToRules || loading}
             size="lg"
-            className="px-8 py-6 text-lg"
+            className="px-8 py-6 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
           >
             {loading ? (
               <>

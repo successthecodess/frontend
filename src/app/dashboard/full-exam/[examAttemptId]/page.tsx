@@ -44,7 +44,7 @@ export default function FullExamPage() {
   // Handle navigation to FRQ section
   useEffect(() => {
     if (currentSection === 'FRQ') {
-      router.push(`/full-exam/${examAttemptId}/frq`);
+      router.push(`/dashboard/full-exam/${examAttemptId}/frq`);
     }
   }, [currentSection, examAttemptId, router]);
 

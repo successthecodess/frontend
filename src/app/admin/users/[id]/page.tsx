@@ -272,7 +272,7 @@ export default function UserEditPage() {
               type="text"
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
-              placeholder="Enter tag name (e.g., apcs-access)"
+              placeholder="Enter tag name (e.g., apcs-exam)"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
               onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
             />
@@ -321,10 +321,8 @@ export default function UserEditPage() {
           </label>
           <div className="flex flex-wrap gap-2">
             {[
-            //  { tag: 'apcs-access', label: 'Question Bank', color: 'bg-blue-50 text-blue-700 border-blue-200' },
-             // { tag: 'apcs-timed', label: 'Timed Practice', color: 'bg-green-50 text-green-700 border-green-200' },
               { tag: 'apcs-test-access', label: 'Practice Test', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-              { tag: 'apcs-exam', label: 'Exam Mode (Premium)', color: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+              { tag: 'apcs-exam', label: '🔥 Premium Full Exam', color: 'bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-700 border-orange-300' },
               { tag: 'apcs-analytics', label: 'Analytics', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
               { tag: 'course-apcs-a', label: 'AP CS A Course', color: 'bg-orange-50 text-orange-700 border-orange-200' },
             ].map(({ tag, label, color }) => (
@@ -334,7 +332,7 @@ export default function UserEditPage() {
                 variant="outline"
                 onClick={() => handleAddTag(tag)}
                 disabled={user.ghlTags?.includes(tag) || addingTag}
-                className={`text-xs border ${color} ${user.ghlTags?.includes(tag) ? 'opacity-50' : ''}`}
+                className={`text-xs border ${color} ${user.ghlTags?.includes(tag) ? 'opacity-50' : ''} ${tag === 'apcs-exam' ? 'font-bold shadow-md' : ''}`}
               >
                 {user.ghlTags?.includes(tag) ? (
                   <>
@@ -355,10 +353,8 @@ export default function UserEditPage() {
               <strong>Tag Guide:</strong>
             </p>
             <ul className="text-xs text-blue-600 mt-1 space-y-1">
-              {/* <li>• <strong>apcs-access</strong>: Basic question bank access</li> */}
-              {/* <li>• <strong>apcs-timed</strong>: Timed practice mode</li> */}
               <li>• <strong>apcs-test-access</strong>: Full practice test access</li>
-              <li>• <strong>apcs-exam</strong>: Premium exam with detailed report + AP score prediction</li>
+              <li>• <strong className="text-orange-600">apcs-exam</strong>: 🔥 PREMIUM - Full exam with detailed report, AP score prediction, analytics & recommendations</li>
               <li>• <strong>apcs-analytics</strong>: Performance analytics dashboard</li>
               <li>• <strong>course-apcs-a</strong>: AP Computer Science A course access</li>
             </ul>
@@ -388,68 +384,11 @@ export default function UserEditPage() {
             </select>
           </div>
 
-          {/* Admin & Staff Flags */}
-          <div className="grid grid-cols-2 gap-4">
-            <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="checkbox"
-                checked={formData.isAdmin}
-                onChange={(e) => setFormData(prev => ({ ...prev, isAdmin: e.target.checked }))}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
-              />
-              <div>
-                <p className="font-medium text-gray-900">Admin Access</p>
-                <p className="text-sm text-gray-600">Full system access</p>
-              </div>
-            </label>
-
-            <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-              <input
-                type="checkbox"
-                checked={formData.isStaff}
-                onChange={(e) => setFormData(prev => ({ ...prev, isStaff: e.target.checked }))}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
-              />
-              <div>
-                <p className="font-medium text-gray-900">Staff Access</p>
-                <p className="text-sm text-gray-600">Can view admin panel</p>
-              </div>
-            </label>
-          </div>
-
           {/* Feature Access */}
           <div>
             <p className="text-sm font-medium text-gray-700 mb-3">Feature Access (Database Flags)</p>
             <div className="space-y-3">
-              {/* <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                <input
-                  type="checkbox"
-                  checked={formData.hasAccessToQuestionBank}
-                  onChange={(e) => setFormData(prev => ({ ...prev, hasAccessToQuestionBank: e.target.checked }))}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
-                />
-                <span className="text-gray-900">Question Bank Access</span>
-              </label> */}
-
-              {/* <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                <input
-                  type="checkbox"
-                  checked={formData.hasAccessToTimedPractice}
-                  onChange={(e) => setFormData(prev => ({ ...prev, hasAccessToTimedPractice: e.target.checked }))}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
-                />
-                <span className="text-gray-900">Timed Practice Access</span>
-              </label> */}
-
-              {/* <label className="flex items-center gap-3 p-3 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
-                <input
-                  type="checkbox"
-                  checked={formData.hasAccessToAnalytics}
-                  onChange={(e) => setFormData(prev => ({ ...prev, hasAccessToAnalytics: e.target.checked }))}
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
-                />
-                <span className="text-gray-900">Analytics Dashboard Access</span>
-              </label> */}
+              {/* Empty - keeping structure for future use */}
             </div>
             <p className="text-xs text-gray-500 mt-2">
               For the best experience, add GHL tags above. Database flags are fallback options.
@@ -458,16 +397,16 @@ export default function UserEditPage() {
 
           {/* Premium */}
           <div>
-            <label className="flex items-center gap-3 p-4 border border-gray-200 rounded-lg cursor-pointer hover:bg-gray-50">
+            <label className="flex items-center gap-3 p-4 border-2 border-orange-300 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg cursor-pointer hover:shadow-md transition-all">
               <input
                 type="checkbox"
                 checked={formData.isPremium}
                 onChange={(e) => setFormData(prev => ({ ...prev, isPremium: e.target.checked }))}
-                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 rounded"
+                className="h-4 w-4 text-orange-600 focus:ring-orange-500 rounded"
               />
               <div className="flex-1">
-                <p className="font-medium text-gray-900">Premium Access</p>
-                <p className="text-sm text-gray-600">Access to premium features</p>
+                <p className="font-bold text-gray-900">🔥 Premium Full Exam Access</p>
+                <p className="text-sm text-gray-700">Access to premium features (also requires <strong>apcs-exam</strong> tag)</p>
               </div>
             </label>
 
@@ -480,12 +419,22 @@ export default function UserEditPage() {
                   type="date"
                   value={formData.premiumUntil}
                   onChange={(e) => setFormData(prev => ({ ...prev, premiumUntil: e.target.value }))}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500"
                 />
-                <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
-                  <p className="text-xs text-yellow-800">
-                    <strong>Premium Features:</strong> Official exam mode with detailed performance reports, AP score predictions, wrong answer analysis, and personalized study recommendations
+                <div className="mt-3 p-4 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-lg border-2 border-orange-200">
+                  <p className="text-xs text-orange-900 font-semibold mb-2">
+                    🔥 PREMIUM FEATURES:
                   </p>
+                  <ul className="text-xs text-orange-800 space-y-1">
+                    <li>✅ Full 3-hour official AP CS A exam (42 MCQ + 4 FRQ)</li>
+                    <li>✅ Detailed performance report with score breakdown</li>
+                    <li>✅ AP Score prediction (1-5 scale with percentile)</li>
+                    <li>✅ Wrong answer analysis with explanations</li>
+                    <li>✅ Personalized study recommendations</li>
+                    <li>✅ Unit-by-unit strength/weakness analysis</li>
+                    <li>✅ Time management insights</li>
+                    <li>✅ Unlimited retakes with progress tracking</li>
+                  </ul>
                 </div>
               </div>
             )}
@@ -497,7 +446,7 @@ export default function UserEditPage() {
           <Button
             onClick={handleSave}
             disabled={saving}
-            className="w-full"
+            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
           >
             <Save className="h-4 w-4 mr-2" />
             {saving ? 'Saving...' : 'Save Changes'}

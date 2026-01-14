@@ -713,7 +713,7 @@ ${userEmail}
               Return to Dashboard
             </Button>
           </Link>
-          <Link href="/full-exam">
+          <Link href="/dashboard/full-exam">
             <Button size="lg" className="bg-gradient-to-r from-indigo-600 to-purple-600">
               <RefreshCw className="h-5 w-5 mr-2" />
               Take Another Exam
