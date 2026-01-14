@@ -16,7 +16,8 @@ import {
   Upload,
   Gift,
   FileText,
-  GraduationCap
+  GraduationCap,
+  BarChart
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -93,6 +94,7 @@ export default function AdminLayout({
     { name: 'Feature Flags', href: '/admin/features', icon: Flag },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
     { name: 'Exam Bank', href: '/admin/exam-bank', icon: GraduationCap },
+     { name: 'Metrics', href: '/admin/full-exams', icon: BarChart },
 {
   name: 'Free Trial',  href: '/admin/free-trial', icon: Gift,
 },

@@ -33,7 +33,6 @@ const getAuthHeaders = () => {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 function isRetryableError(error: any, statusCode?: number): boolean {
-  // Check if error exists and has properties
   if (!error) return false;
   
   if (error instanceof TypeError && error.message?.includes('fetch')) {
@@ -264,7 +263,28 @@ export const examApi = {
     );
   },
 
-  // Full Exam
+  // Import MCQ questions from practice tests
+  async importMCQQuestions(questionIds: string[]) {
+    const url = `${API_BASE_URL}/admin/exam-bank/import`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ questionIds }),
+      },
+      'importMCQQuestions'
+    );
+  },
+
+  // Get available practice questions for import
+  async getAvailablePracticeQuestions(unitId?: string) {
+    const params = unitId ? `?unitId=${unitId}` : '';
+    const url = `${API_BASE_URL}/admin/exam-bank/practice-questions/available${params}`;
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getAvailablePracticeQuestions');
+  },
+
+  // Full Exam - Student Routes
   async startFullExam(userId: string) {
     const url = `${API_BASE_URL}/full-exam/start`;
     return handleResponse(
@@ -347,50 +367,7 @@ export const examApi = {
       'submitFullExam'
     );
   },
-  // Add these methods to the examApi object (after deleteQuestion method)
 
-// Import MCQ questions from practice tests
-async importMCQQuestions(questionIds: string[]) {
-  const url = `${API_BASE_URL}/admin/exam-bank/import`;
-  return handleResponse(
-    url,
-    {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ questionIds }),
-    },
-    'importMCQQuestions'
-  );
-},
-// Add this method to the examApi object (after getExamResults)
-async requestFRQReview(examAttemptId: string, frqNumber: number) {
-  // Get user info from localStorage
-  const userEmail = typeof window !== 'undefined' ? localStorage.getItem('userEmail') : null;
-  const userName = typeof window !== 'undefined' ? localStorage.getItem('userName') : null;
-  const userId = typeof window !== 'undefined' ? localStorage.getItem('userId') : null;
-
-  const url = `${API_BASE_URL}/full-exam/${examAttemptId}/request-review`;
-  return handleResponse(
-    url,
-    {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({
-        frqNumber,
-        userId,
-        userEmail,
-        userName,
-      }),
-    },
-    'requestFRQReview'
-  );
-},
-// Get available practice questions for import
-async getAvailablePracticeQuestions(unitId?: string) {
-  const params = unitId ? `?unitId=${unitId}` : '';
-  const url = `${API_BASE_URL}/admin/practice-questions/available${params}`;
-  return handleResponse(url, { headers: getAuthHeaders() }, 'getAvailablePracticeQuestions');
-},
   async getExamAttempt(examAttemptId: string) {
     const url = `${API_BASE_URL}/full-exam/${examAttemptId}`;
     return handleResponse(url, { headers: getAuthHeaders() }, 'getExamAttempt');
@@ -399,5 +376,52 @@ async getAvailablePracticeQuestions(unitId?: string) {
   async getExamResults(examAttemptId: string) {
     const url = `${API_BASE_URL}/full-exam/${examAttemptId}/results`;
     return handleResponse(url, { headers: getAuthHeaders() }, 'getExamResults');
+  },
+
+  // Get user's exam history
+  async getUserExamHistory(userId: string) {
+    const url = `${API_BASE_URL}/full-exam/history/${userId}`;
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getUserExamHistory');
+  },
+
+  // ADMIN: Get all exam attempts
+  async adminGetAllAttempts(filters?: {
+    userId?: string;
+    status?: string;
+    limit?: number;
+    offset?: number;
+  }) {
+    const params = new URLSearchParams();
+    if (filters?.userId) params.append('userId', filters.userId);
+    if (filters?.status) params.append('status', filters.status);
+    if (filters?.limit) params.append('limit', filters.limit.toString());
+    if (filters?.offset) params.append('offset', filters.offset.toString());
+
+    const url = `${API_BASE_URL}/admin/full-exams/attempts?${params.toString()}`;
+    return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetAllAttempts');
+  },
+
+  // ADMIN: Get exam statistics
+  async adminGetExamStatistics() {
+    const url = `${API_BASE_URL}/admin/full-exams/statistics`;
+    return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetExamStatistics');
+  },
+
+  // ADMIN: Get all exam users
+  async adminGetExamUsers() {
+    const url = `${API_BASE_URL}/admin/full-exams/users`;
+    return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetExamUsers');
+  },
+
+  // ADMIN: Get student exam history
+  async adminGetStudentHistory(userId: string) {
+    const url = `${API_BASE_URL}/admin/full-exams/users/${userId}/history`;
+    return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetStudentHistory');
+  },
+
+  // ADMIN: Get exam attempt details
+  async adminGetExamDetails(examAttemptId: string) {
+    const url = `${API_BASE_URL}/admin/full-exams/attempts/${examAttemptId}`;
+    return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetExamDetails');
   },
 };

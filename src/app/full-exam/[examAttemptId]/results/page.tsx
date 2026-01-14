@@ -21,6 +21,7 @@ import {
   Eye,
   Calendar,
   Mail,
+  Star,
 } from 'lucide-react';
 import Link from 'next/link';
 import { examApi } from '@/lib/examApi';
@@ -70,6 +71,22 @@ export default function ExamResultsPage() {
     } catch (error) {
       console.error('Failed to load user info:', error);
     }
+  };
+
+  // Calculate AP score based on MCQ alone (55% weight)
+  const calculateMCQOnlyAPScore = (mcqScore: number) => {
+    // MCQ contributes 55% to total score
+    const mcqWeighted = (mcqScore / 42) * 55;
+    
+    // Since FRQ is unknown, we calculate what AP score range this puts them in
+    // Assuming average FRQ performance (60% = 27 points)
+    const estimatedTotal = mcqWeighted + (45 * 0.6);
+    
+    if (estimatedTotal >= 75) return 5;
+    if (estimatedTotal >= 62) return 4;
+    if (estimatedTotal >= 50) return 3;
+    if (estimatedTotal >= 37) return 2;
+    return 1;
   };
 
   const handleScheduleReview = (frqNumber: number) => {
@@ -149,6 +166,22 @@ ${userEmail}
     return 'from-red-500 to-red-700';
   };
 
+  const getAPScoreTextColor = (score: number) => {
+    if (score === 5) return 'text-green-600';
+    if (score === 4) return 'text-blue-600';
+    if (score === 3) return 'text-yellow-600';
+    if (score === 2) return 'text-orange-600';
+    return 'text-red-600';
+  };
+
+  const getAPScoreLabel = (score: number) => {
+    if (score === 5) return 'Extremely Well Qualified';
+    if (score === 4) return 'Well Qualified';
+    if (score === 3) return 'Qualified';
+    if (score === 2) return 'Possibly Qualified';
+    return 'No Recommendation';
+  };
+
   const getPerformanceLevel = (percentage: number) => {
     if (percentage >= 90) return { label: 'Exceptional', color: 'text-green-600', bg: 'bg-green-50' };
     if (percentage >= 80) return { label: 'Strong', color: 'text-blue-600', bg: 'bg-blue-50' };
@@ -196,6 +229,7 @@ ${userEmail}
   }
 
   const mcqPerformance = getPerformanceLevel(results.mcqPercentage || 0);
+  const mcqOnlyAPScore = calculateMCQOnlyAPScore(results.mcqScore || 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12">
@@ -213,15 +247,55 @@ ${userEmail}
           </p>
         </div>
 
-        {/* MCQ Score Card */}
-        <Card className="p-8 mb-8 bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
-          <div className="text-center">
-            <p className="text-white/90 text-lg mb-2">MCQ Performance</p>
-            <div className="text-8xl font-bold mb-4">{results.mcqScore}/42</div>
-            <p className="text-2xl font-semibold mb-2">{results.mcqPercentage?.toFixed(1)}% Correct</p>
-            <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-6 py-3">
-              <Target className="h-5 w-5" />
-              <span className="font-semibold">Section I: Multiple Choice</span>
+        {/* Score Summary Grid */}
+        <div className="grid md:grid-cols-2 gap-6 mb-8">
+          {/* MCQ Score Card */}
+          <Card className="p-8 bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
+            <div className="text-center">
+              <p className="text-white/90 text-lg mb-2">MCQ Performance</p>
+              <div className="text-7xl font-bold mb-4">{results.mcqScore}/42</div>
+              <p className="text-2xl font-semibold mb-2">{results.mcqPercentage?.toFixed(1)}% Correct</p>
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-6 py-3">
+                <Target className="h-5 w-5" />
+                <span className="font-semibold">Section I: Multiple Choice</span>
+              </div>
+            </div>
+          </Card>
+
+          {/* Estimated AP Score Card (Based on MCQ) */}
+          <Card className={`p-8 bg-gradient-to-br ${getAPScoreColor(mcqOnlyAPScore)} text-white`}>
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-2 mb-3">
+                <Star className="h-6 w-6 fill-white" />
+                <p className="text-white/90 text-lg">Estimated AP Score</p>
+                <Star className="h-6 w-6 fill-white" />
+              </div>
+              <div className="text-8xl font-bold mb-3">{mcqOnlyAPScore}</div>
+              <p className="text-xl font-semibold mb-2">{getAPScoreLabel(mcqOnlyAPScore)}</p>
+              <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-6 py-3">
+                <Award className="h-5 w-5" />
+                <span className="font-semibold text-sm">Based on MCQ Performance</span>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* AP Score Context */}
+        <Card className="p-6 mb-8 bg-gradient-to-r from-purple-50 to-indigo-50 border-2 border-purple-200">
+          <div className="flex items-start gap-4">
+            <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <Star className="h-6 w-6 text-white fill-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-purple-900 text-lg mb-2">About Your AP Score</h3>
+              <p className="text-purple-800 mb-3">
+                Your estimated AP score of <strong>{mcqOnlyAPScore}</strong> is calculated based on your MCQ performance (55% of total score) 
+                and assumes average FRQ performance (60%). Your actual AP score will depend on your FRQ responses.
+              </p>
+              <p className="text-sm text-purple-700">
+                <strong>Note:</strong> Review your FRQ solutions below and compare them to the rubrics to better estimate your final score. 
+                The ranges below show what you could achieve with different FRQ performance levels.
+              </p>
             </div>
           </div>
         </Card>
@@ -230,10 +304,10 @@ ${userEmail}
         <Card className="p-6 mb-8">
           <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
             <BarChart3 className="h-6 w-6 text-purple-600" />
-            Estimated AP Score Ranges
+            AP Score Potential with Different FRQ Performance
           </h3>
           <p className="text-sm text-gray-600 mb-6">
-            Based on your MCQ score, here's what you could achieve with different FRQ performance levels:
+            Based on your MCQ score of {results.mcqScore}/42, here's your AP score potential:
           </p>
 
           <div className="space-y-3">
@@ -260,7 +334,7 @@ ${userEmail}
 
           <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
             <p className="text-sm text-blue-900">
-              <strong>Note:</strong> Review your FRQ solutions below and compare them to the sample solutions and rubrics to estimate your FRQ performance.
+              <strong>Tip:</strong> Review your FRQ solutions below and compare them to the sample solutions and rubrics to estimate which range you fall into.
             </p>
           </div>
         </Card>

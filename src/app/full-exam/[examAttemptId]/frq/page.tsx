@@ -34,6 +34,7 @@ export default function FRQExamPage() {
   const [currentFRQIndex, setCurrentFRQIndex] = useState(0);
   const [currentPartIndex, setCurrentPartIndex] = useState(0);
   const [partCodes, setPartCodes] = useState<Record<string, string>>({});
+  const [initializedFRQs, setInitializedFRQs] = useState<Set<number>>(new Set());
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
@@ -66,31 +67,47 @@ export default function FRQExamPage() {
     };
   }, [examAttempt]);
 
+  // FIXED: Initialize part codes only once per FRQ
   useEffect(() => {
     if (!examAttempt) return;
+    
+    // ALWAYS reset part index when changing FRQs
+    setCurrentPartIndex(0);
+    
+    // Only initialize if we haven't initialized this FRQ yet
+    if (initializedFRQs.has(currentFRQIndex)) {
+      return;
+    }
     
     const currentFRQ = examAttempt.frqResponses[currentFRQIndex];
     const parts = currentFRQ.question.frqParts || [];
     
-    const newPartCodes: Record<string, string> = {};
+    setPartCodes(prevCodes => {
+      const newPartCodes: Record<string, string> = { ...prevCodes };
+      
+      if (currentFRQ.partResponses && currentFRQ.partResponses.length > 0) {
+        // Load from saved responses
+        currentFRQ.partResponses.forEach((response: PartResponse) => {
+          const key = `${currentFRQIndex}-${response.partLetter}`;
+          newPartCodes[key] = response.userCode || '';
+        });
+      } else if (parts.length > 0) {
+        // Initialize with starter code for new parts
+        parts.forEach((part: any) => {
+          const key = `${currentFRQIndex}-${part.partLetter}`;
+          newPartCodes[key] = part.starterCode || currentFRQ.question.starterCode || '';
+        });
+      } else {
+        // Single part question
+        const key = `${currentFRQIndex}-single`;
+        newPartCodes[key] = currentFRQ.userCode || currentFRQ.question.starterCode || '';
+      }
+      
+      return newPartCodes;
+    });
     
-    if (currentFRQ.partResponses && currentFRQ.partResponses.length > 0) {
-      currentFRQ.partResponses.forEach((response: PartResponse) => {
-        const key = `${currentFRQIndex}-${response.partLetter}`;
-        newPartCodes[key] = response.userCode || '';
-      });
-    } else if (parts.length > 0) {
-      parts.forEach((part: any) => {
-        const key = `${currentFRQIndex}-${part.partLetter}`;
-        newPartCodes[key] = part.starterCode || currentFRQ.question.starterCode || '';
-      });
-    } else {
-      const key = `${currentFRQIndex}-single`;
-      newPartCodes[key] = currentFRQ.userCode || currentFRQ.question.starterCode || '';
-    }
-    
-    setPartCodes(newPartCodes);
-    setCurrentPartIndex(0);
+    // Mark this FRQ as initialized
+    setInitializedFRQs(prev => new Set([...prev, currentFRQIndex]));
   }, [currentFRQIndex, examAttempt]);
 
   const loadExamAttempt = async () => {
@@ -114,7 +131,15 @@ export default function FRQExamPage() {
     const parts = currentFRQ.question.frqParts || [];
     
     if (parts.length > 0) {
-      const currentPart = parts[currentPartIndex];
+      // Safety check: ensure currentPartIndex is valid
+      const validPartIndex = Math.min(currentPartIndex, parts.length - 1);
+      const currentPart = parts[validPartIndex];
+      
+      if (!currentPart) {
+        console.warn('No valid part found, returning empty string');
+        return '';
+      }
+      
       const key = `${currentFRQIndex}-${currentPart.partLetter}`;
       return partCodes[key] || '';
     } else {
@@ -133,16 +158,27 @@ export default function FRQExamPage() {
     
     let key: string;
     if (parts.length > 0) {
-      const currentPart = parts[currentPartIndex];
+      // Safety check: ensure currentPartIndex is valid
+      const validPartIndex = Math.min(currentPartIndex, parts.length - 1);
+      const currentPart = parts[validPartIndex];
+      
+      if (!currentPart) {
+        console.warn('No valid part found, cannot save code');
+        return;
+      }
+      
       key = `${currentFRQIndex}-${currentPart.partLetter}`;
     } else {
       key = `${currentFRQIndex}-single`;
     }
     
+    // Update the code in state
     setPartCodes(prev => ({ ...prev, [key]: newCode }));
 
+    // Clear existing timeout
     if (autoSaveTimeout) clearTimeout(autoSaveTimeout);
     
+    // Set new timeout for auto-save
     const timeout = setTimeout(() => {
       handleSaveFRQ();
     }, 3000);
@@ -157,6 +193,9 @@ export default function FRQExamPage() {
     const parts = currentFRQ.question.frqParts || [];
     const timeSpent = Math.floor((Date.now() - frqStartTime) / 1000);
 
+    // Save the current state of partCodes before making the API call
+    const currentPartCodes = { ...partCodes };
+
     try {
       setSaving(true);
       
@@ -165,7 +204,7 @@ export default function FRQExamPage() {
             const key = `${currentFRQIndex}-${part.partLetter}`;
             return {
               partLetter: part.partLetter,
-              userCode: partCodes[key] || '',
+              userCode: currentPartCodes[key] || '',
               timeSpent: timeSpent,
             };
           })
@@ -174,9 +213,9 @@ export default function FRQExamPage() {
       const combinedCode = parts.length > 0
         ? parts.map((part: any) => {
             const key = `${currentFRQIndex}-${part.partLetter}`;
-            return `// Part ${part.partLetter}\n${partCodes[key] || ''}\n`;
+            return `// Part ${part.partLetter}\n${currentPartCodes[key] || ''}\n`;
           }).join('\n')
-        : partCodes[`${currentFRQIndex}-single`] || '';
+        : currentPartCodes[`${currentFRQIndex}-single`] || '';
 
       await examApi.submitFRQAnswer({
         examAttemptId,
@@ -186,14 +225,22 @@ export default function FRQExamPage() {
         timeSpent,
       });
 
-      const updated = { ...examAttempt };
-      updated.frqResponses[currentFRQIndex].userCode = combinedCode;
-      updated.frqResponses[currentFRQIndex].partResponses = partResponses;
-      setExamAttempt(updated);
+      // Update examAttempt but DON'T touch partCodes
+      setExamAttempt(prev => {
+        if (!prev) return prev;
+        const updated = { ...prev };
+        updated.frqResponses[currentFRQIndex] = {
+          ...updated.frqResponses[currentFRQIndex],
+          userCode: combinedCode,
+          partResponses: partResponses,
+        };
+        return updated;
+      });
 
-      console.log('✅ FRQ saved');
+      console.log('✅ FRQ saved successfully');
     } catch (error) {
-      console.error('Failed to save FRQ:', error);
+      console.error('❌ Failed to save FRQ:', error);
+      // partCodes remain unchanged on error
     } finally {
       setSaving(false);
     }
@@ -213,6 +260,7 @@ export default function FRQExamPage() {
   const handleSubmitExam = async () => {
     if (!examAttempt) return;
 
+    // Save current FRQ before submitting
     await handleSaveFRQ();
 
     const unanswered = examAttempt.frqResponses.filter(r => !r.userCode || r.userCode.trim() === '').length;
@@ -337,7 +385,9 @@ export default function FRQExamPage() {
     }
   };
 
-  const currentPart = parts.length > 0 ? parts[currentPartIndex] : null;
+  const currentPart = parts.length > 0 && currentPartIndex < parts.length 
+    ? parts[currentPartIndex] 
+    : null;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50">
@@ -394,7 +444,6 @@ export default function FRQExamPage() {
               </div>
               {saving && (
                 <p className="text-xs text-blue-600 flex items-center gap-1 justify-end font-medium">
-              
                   Saving...
                 </p>
               )}
