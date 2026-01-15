@@ -2,21 +2,19 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Code, Mail, Lock, Loader2 } from 'lucide-react';
+import { Code, Mail, Loader2, CheckCircle } from 'lucide-react';
 import { Suspense } from 'react';
 
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { setUser } = useAuth();
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   useEffect(() => {
     const emailParam = searchParams.get('email');
@@ -25,49 +23,70 @@ function LoginForm() {
     }
   }, [searchParams]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleRequestLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
     setLoading(true);
 
     try {
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/login`,
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/student/request-login`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ email }),
         }
       );
 
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.error || 'Login failed');
+        throw new Error(data.error || 'Request failed');
       }
 
-      // Store token
-      localStorage.setItem('authToken', data.token);
-
-      // Set user in context
-      setUser(data.user);
-
-      // Small delay for state update
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Redirect based on role
-      if (data.user.isAdmin) {
-        router.push('/admin');
-      } else {
-        router.push('/dashboard');
-      }
+      setEmailSent(true);
       
     } catch (err: any) {
-      console.error('Login error:', err);
-      setError(err.message || 'Login failed. Please try again.');
+      console.error('Login request error:', err);
+      setError(err.message || 'Request failed. Please try again.');
       setLoading(false);
     }
   };
+
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
+        <Card className="w-full max-w-md p-6 sm:p-8">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Check Your Email!</h1>
+            <p className="text-gray-600 mb-6">
+              We've sent a secure login link to <strong>{email}</strong>
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800">
+                📧 Click the link in your email to log in securely.
+                <br />
+                ⏰ The link expires in 15 minutes.
+              </p>
+            </div>
+            <Button
+              onClick={() => {
+                setEmailSent(false);
+                setLoading(false);
+              }}
+              variant="outline"
+              className="w-full"
+            >
+              Resend Link
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
@@ -78,7 +97,7 @@ function LoginForm() {
           </div>
           <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Welcome Back!</h1>
           <p className="mt-2 text-sm sm:text-base text-gray-600">
-            Log in to your account
+            Log in with your email - no password needed
           </p>
         </div>
 
@@ -88,7 +107,7 @@ function LoginForm() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form onSubmit={handleRequestLogin} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Email Address
@@ -107,23 +126,10 @@ function LoginForm() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm sm:text-base"
-                placeholder="••••••••"
-                required
-                disabled={loading}
-                minLength={8}
-              />
-            </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-xs text-blue-800">
+              🔒 <strong>Secure Login:</strong> We'll send a magic link to your email. Click it to log in instantly - no password required!
+            </p>
           </div>
 
           <Button
@@ -135,10 +141,13 @@ function LoginForm() {
             {loading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Logging in...
+                Sending Link...
               </>
             ) : (
-              'Log In'
+              <>
+                <Mail className="mr-2 h-4 w-4" />
+                Send Login Link
+              </>
             )}
           </Button>
         </form>

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Code, Mail, User, Phone, Lock, Loader2, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Code, Mail, User, Phone, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -14,13 +14,10 @@ export default function SignUpPage() {
     firstName: '',
     lastName: '',
     phone: '',
-    password: '',
-    confirmPassword: '',
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -32,18 +29,6 @@ export default function SignUpPage() {
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-
-    // Validation
-    if (formData.password !== formData.confirmPassword) {
-      setError('Passwords do not match');
-      return;
-    }
-
-    if (formData.password.length < 8) {
-      setError('Password must be at least 8 characters long');
-      return;
-    }
-
     setLoading(true);
 
     try {
@@ -57,7 +42,6 @@ export default function SignUpPage() {
             firstName: formData.firstName,
             lastName: formData.lastName,
             phone: formData.phone,
-            password: formData.password,
           }),
         }
       );
@@ -75,18 +59,8 @@ export default function SignUpPage() {
         throw new Error(data.error || 'Signup failed');
       }
 
-      // Store token
-      localStorage.setItem('authToken', data.token);
-
-      // Small delay
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Redirect based on role
-      if (data.user.isAdmin) {
-        window.location.href = '/admin';
-      } else {
-        window.location.href = '/dashboard';
-      }
+      // Show success message
+      setEmailSent(true);
       
     } catch (err: any) {
       console.error('Signup error:', err);
@@ -94,6 +68,52 @@ export default function SignUpPage() {
       setLoading(false);
     }
   };
+
+  if (emailSent) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
+        <Card className="w-full max-w-md p-6 sm:p-8">
+          <div className="text-center">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-4">
+              <CheckCircle className="h-8 w-8 text-green-600" />
+            </div>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">Account Created!</h1>
+            <p className="text-gray-600 mb-6">
+              We've sent a secure login link to <strong>{formData.email}</strong>
+            </p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <p className="text-sm text-blue-800">
+                📧 Check your email and click the link to log in.
+                <br />
+                ⏰ The link expires in 15 minutes.
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm text-gray-600">
+                Didn't receive the email?
+              </p>
+              <Button
+                onClick={() => {
+                  setEmailSent(false);
+                  setLoading(false);
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Try Again
+              </Button>
+              <Link
+                href="/login"
+                className="block text-sm text-indigo-600 hover:text-indigo-700 font-medium"
+              >
+                Back to Login
+              </Link>
+            </div>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4 py-8">
@@ -204,59 +224,10 @@ export default function SignUpPage() {
             </div>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Password *
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type={showPassword ? 'text' : 'password'}
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                placeholder="••••••••"
-                required
-                disabled={loading}
-                minLength={8}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </div>
-            <p className="text-xs text-gray-500 mt-1">Must be at least 8 characters</p>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Confirm Password *
-            </label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
-              <input
-                type={showConfirmPassword ? 'text' : 'password'}
-                name="confirmPassword"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                placeholder="••••••••"
-                required
-                disabled={loading}
-                minLength={8}
-              />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-              >
-                {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-              </button>
-            </div>
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+            <p className="text-xs text-blue-800">
+              🔒 <strong>Secure signup:</strong> We'll send a magic link to your email. No password needed!
+            </p>
           </div>
 
           <Button
