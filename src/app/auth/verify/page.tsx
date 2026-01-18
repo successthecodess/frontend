@@ -41,23 +41,34 @@ function VerifyMagicLink() {
           throw new Error(data.error || 'Verification failed');
         }
 
-        // Store token
+        // Store token FIRST
         localStorage.setItem('authToken', data.token);
 
+        // Format user data to match context expectations
+        const userData = {
+          userId: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          role: data.user.role,
+          isAdmin: data.user.isAdmin,
+          isStaff: data.user.isStaff,
+        };
+
         // Set user in context
-        setUser(data.user);
+        setUser(userData);
 
         setStatus('success');
         setMessage('Login successful! Redirecting...');
 
-        // Redirect
-        setTimeout(() => {
-          if (data.user.isAdmin) {
-            router.push('/admin');
-          } else {
-            router.push('/dashboard');
-          }
-        }, 1500);
+        // Wait a bit longer before redirect to ensure state is set
+        await new Promise(resolve => setTimeout(resolve, 500));
+
+        // Use replace instead of push to avoid back button issues
+        if (data.user.isAdmin) {
+          window.location.href = '/admin';
+        } else {
+          window.location.href = '/dashboard';
+        }
 
       } catch (err: any) {
         console.error('Verification error:', err);
@@ -67,7 +78,7 @@ function VerifyMagicLink() {
     };
 
     verifyToken();
-  }, [searchParams, router, setUser]);
+  }, [searchParams, setUser]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -19,7 +19,7 @@ export default function AdminFreeTrialPage() {
     loadAvailableQuestions();
   }, []);
 
-  const loadFreeTrialQuestions = async () => {
+  const loadFreeTrialQuestions = useCallback(async () => {
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(
@@ -47,9 +47,9 @@ export default function AdminFreeTrialPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const loadAvailableQuestions = async (unitId?: string) => {
+  const loadAvailableQuestions = useCallback(async (unitId?: string) => {
     try {
       const token = localStorage.getItem('authToken');
       const url = unitId 
@@ -65,9 +65,9 @@ export default function AdminFreeTrialPage() {
     } catch (error) {
       console.error('Failed to load available questions:', error);
     }
-  };
+  }, []);
 
-  const handleSetQuestion = async (questionId: string, orderIndex: number) => {
+  const handleSetQuestion = useCallback(async (questionId: string, orderIndex: number) => {
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(
@@ -93,9 +93,9 @@ export default function AdminFreeTrialPage() {
     } catch (error) {
       alert('Failed to set question');
     }
-  };
+  }, [loadFreeTrialQuestions]);
 
-  const handleRemoveQuestion = async (orderIndex: number) => {
+  const handleRemoveQuestion = useCallback(async (orderIndex: number) => {
     if (!confirm(`Remove question from slot ${orderIndex}?`)) return;
 
     try {
@@ -115,24 +115,47 @@ export default function AdminFreeTrialPage() {
     } catch (error) {
       alert('Failed to remove question');
     }
-  };
+  }, [loadFreeTrialQuestions]);
 
-  const filteredQuestions = availableQuestions.filter(q => {
-    const matchesSearch = !searchQuery || 
-      q.questionText.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.unit?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      q.topic?.name.toLowerCase().includes(searchQuery.toLowerCase());
-    
-    const matchesUnit = !filterUnit || q.unitId === filterUnit;
+  // Memoized computed values
+  const assignedQuestionIds = useMemo(() => 
+    freeTrialQuestions
+      .filter(slot => !slot.isEmpty)
+      .map(slot => slot.question.id),
+    [freeTrialQuestions]
+  );
 
-    return matchesSearch && matchesUnit;
-  });
+  const filledSlots = useMemo(() => 
+    freeTrialQuestions.filter(slot => !slot.isEmpty).length,
+    [freeTrialQuestions]
+  );
 
-  const assignedQuestionIds = freeTrialQuestions
-    .filter(slot => !slot.isEmpty)
-    .map(slot => slot.question.id);
+  const uniqueUnits = useMemo(() => 
+    Array.from(new Set(availableQuestions.map(q => q.unit?.id)))
+      .filter(Boolean)
+      .map(unitId => availableQuestions.find(q => q.unit?.id === unitId)?.unit)
+      .filter(Boolean),
+    [availableQuestions]
+  );
 
-  const filledSlots = freeTrialQuestions.filter(slot => !slot.isEmpty).length;
+  // Memoized filtered questions
+  const filteredQuestions = useMemo(() => {
+    return availableQuestions.filter(q => {
+      const matchesSearch = !searchQuery || 
+        q.questionText.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.unit?.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        q.topic?.name.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesUnit = !filterUnit || q.unitId === filterUnit;
+
+      return matchesSearch && matchesUnit;
+    });
+  }, [availableQuestions, searchQuery, filterUnit]);
+
+  const handleUnitFilterChange = useCallback((unitId: string) => {
+    setFilterUnit(unitId);
+    loadAvailableQuestions(unitId);
+  }, [loadAvailableQuestions]);
 
   if (loading) {
     return (
@@ -153,7 +176,7 @@ export default function AdminFreeTrialPage() {
           <h1 className="text-3xl font-bold text-gray-900">Free Trial Questions</h1>
         </div>
         <p className="text-gray-600">
-          Select 10 questions for the free trial diagnostic quiz. These questions will be shown in order to all new users.
+          Select 10 questions for the free trial diagnostic quiz. Questions will be randomized for each user.
         </p>
       </div>
 
@@ -170,7 +193,7 @@ export default function AdminFreeTrialPage() {
               {filledSlots === 10 ? 'Free Trial Ready!' : 'Free Trial Incomplete'}
             </h3>
             <p className={`text-sm ${filledSlots === 10 ? 'text-green-700' : 'text-yellow-700'}`}>
-              {filledSlots} of 10 questions configured
+              {filledSlots} of 10 questions configured • Questions randomized per user
             </p>
           </div>
         </div>
@@ -275,21 +298,15 @@ export default function AdminFreeTrialPage() {
                 </div>
                 <select
                   value={filterUnit}
-                  onChange={(e) => {
-                    setFilterUnit(e.target.value);
-                    loadAvailableQuestions(e.target.value);
-                  }}
+                  onChange={(e) => handleUnitFilterChange(e.target.value)}
                   className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="">All Units</option>
-                  {Array.from(new Set(availableQuestions.map(q => q.unit?.id))).map((unitId: any) => {
-                    const unit = availableQuestions.find(q => q.unit?.id === unitId)?.unit;
-                    return (
-                      <option key={unitId} value={unitId}>
-                        Unit {unit?.unitNumber}: {unit?.name}
-                      </option>
-                    );
-                  })}
+                  {uniqueUnits.map((unit: any) => (
+                    <option key={unit.id} value={unit.id}>
+                      Unit {unit.unitNumber}: {unit.name}
+                    </option>
+                  ))}
                 </select>
               </div>
             </div>
@@ -308,7 +325,7 @@ export default function AdminFreeTrialPage() {
                     return (
                       <Card
                         key={question.id}
-                        className={`p-4 ${isAlreadyAssigned ? 'opacity-50 bg-gray-50' : 'hover:shadow-md cursor-pointer'}`}
+                        className={`p-4 transition-all ${isAlreadyAssigned ? 'opacity-50 bg-gray-50' : 'hover:shadow-md cursor-pointer'}`}
                         onClick={() => !isAlreadyAssigned && handleSetQuestion(question.id, selectedSlot)}
                       >
                         <div className="flex items-start justify-between gap-4">

@@ -23,21 +23,33 @@ interface UserAccess {
 
 export default function DashboardPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
   const [userAccess, setUserAccess] = useState<UserAccess | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (user) {
-      checkAccess();
+    // Wait for auth to be ready
+    if (!authLoading) {
+      if (!user) {
+        // No user, redirect to login
+        router.push('/login');
+      } else {
+        // User exists, check access
+        checkAccess();
+      }
     }
-  }, [user]);
+  }, [user, authLoading, router]);
 
   const checkAccess = async () => {
     if (!user) return;
 
     try {
       const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        router.push('/login');
+        return;
+      }
       
       const response = await fetch(
         `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/my-access`,
@@ -49,6 +61,10 @@ export default function DashboardPage() {
       if (response.ok) {
         const accessData = await response.json();
         setUserAccess(accessData);
+      } else {
+        // Token invalid, redirect to login
+        localStorage.removeItem('authToken');
+        router.push('/login');
       }
     } catch (error) {
       console.error('Failed to check access:', error);
@@ -65,7 +81,19 @@ export default function DashboardPage() {
     window.location.href = `mailto:daniel@enginearu.com?subject=${subject}&body=${body}`;
   };
 
-  if (!user || loading) return null;
+  // Show loading while auth or access is being checked
+  if (authLoading || loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
+      </div>
+    );
+  }
+
+  // If no user after loading, return null (will redirect)
+  if (!user) {
+    return null;
+  }
 
   // Show free trial prompt only if they have NO access (not even trial used)
   const showFreeTrialPrompt = userAccess && userAccess.accessTier === 'none' && userAccess.hasFreeTrialAccess;
