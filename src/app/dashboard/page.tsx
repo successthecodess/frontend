@@ -73,14 +73,6 @@ export default function DashboardPage() {
     }
   };
 
-  const handleContactInstructor = () => {
-    const subject = encodeURIComponent('Request for Full Access');
-    const body = encodeURIComponent(
-      `Hi,\n\nI would like to request full access to the AP Computer Science A practice platform.\n\nMy account details:\nName: ${user?.name || 'N/A'}\nEmail: ${user?.email || 'N/A'}\n\nThank you!`
-    );
-    window.location.href = `mailto:daniel@enginearu.com?subject=${subject}&body=${body}`;
-  };
-
   // Show loading while auth or access is being checked
   if (authLoading || loading) {
     return (
@@ -154,32 +146,7 @@ export default function DashboardPage() {
           </Card>
         )}
 
-        {/* Trial Complete - Need Full Access */}
-        {showTrialCompletePrompt && (
-          <Card className="bg-gradient-to-r from-yellow-500 to-orange-600 p-6 sm:p-8 text-white border-0">
-            <div className="flex items-start gap-4">
-              <div className="p-3 bg-white/20 rounded-lg flex-shrink-0">
-                <Lock className="h-8 w-8" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <h3 className="text-xl sm:text-2xl font-bold mb-2">
-                  Ready to Continue Learning?
-                </h3>
-                <p className="text-white/90 mb-4 text-sm sm:text-base">
-                  You've completed the free trial! Get full access to unlimited practice questions, adaptive difficulty, detailed analytics, and exam mode.
-                </p>
-                <Button
-                  onClick={handleContactInstructor}
-                  className="bg-white text-orange-600 hover:bg-gray-100"
-                >
-                  <Mail className="mr-2 h-4 w-4" />
-                  Contact Instructor for Access
-                  <ArrowRight className="ml-2 h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          </Card>
-        )}
+       
 
         {/* Dashboard Overview */}
         <DashboardOverview userId={user.userId} />

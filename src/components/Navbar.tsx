@@ -14,7 +14,7 @@ export function Navbar() {
 
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
-    { href: 'dashboard/practice', label: 'Practice', icon: Target },
+    { href: '/dashboard/practice', label: 'Practice', icon: Target },
     { href: '/dashboard/full-exam', label: 'Full Exam', icon: GraduationCap },
     
   ];
@@ -38,7 +38,7 @@ export function Navbar() {
           {/* Logo and Desktop Nav */}
           <div className="flex items-center gap-8">
             {/* Logo */}
-            <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
+            <Link href="" className="flex items-center gap-2 flex-shrink-0">
               <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600">
                 <Code className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>

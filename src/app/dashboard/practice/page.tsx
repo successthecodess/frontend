@@ -9,13 +9,16 @@ import {
   BookOpen, 
   Target, 
   AlertCircle,
-  FileQuestion,
   Lock,
   Clock,
-  Zap
+  Zap,
+  CheckCircle,
+  Star,
+  TrendingUp,
+  GraduationCap,
+  ArrowRight
 } from 'lucide-react';
 import { api } from '@/lib/api';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
 
 interface Unit {
   id: string;
@@ -27,10 +30,12 @@ interface Unit {
   questionCount?: number;
 }
 
-function PracticePageContent() {
+export default function PracticePage() {
   const router = useRouter();
   const [units, setUnits] = useState<Unit[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
   const [questionCount, setQuestionCount] = useState(10);
   const [isTimedMode, setIsTimedMode] = useState(false);
@@ -38,8 +43,49 @@ function PracticePageContent() {
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    loadUnits();
+    checkAccess();
   }, []);
+
+  const checkAccess = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/my-access`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🔐 Access check:', data);
+        
+        // Check for practice test access
+        const canAccess = data.hasPracticeTestAccess || data.hasFullAccess || data.isAdmin || false;
+        setHasAccess(canAccess);
+        
+        if (canAccess) {
+          loadUnits();
+        } else {
+          setIsLoading(false);
+        }
+      } else {
+        setHasAccess(false);
+        setIsLoading(false);
+      }
+    } catch (error) {
+      console.error('Failed to check access:', error);
+      setHasAccess(false);
+      setIsLoading(false);
+    } finally {
+      setCheckingAccess(false);
+    }
+  };
 
   const loadUnits = async () => {
     try {
@@ -53,9 +99,7 @@ function PracticePageContent() {
   };
 
   const handleStartPractice = (unitId: string, hasQuestions: boolean) => {
-    if (!hasQuestions) {
-      return;
-    }
+    if (!hasQuestions) return;
     setSelectedUnit(unitId);
     setShowModal(true);
   };
@@ -76,12 +120,164 @@ function PracticePageContent() {
     router.push(`/dashboard/practice/${selectedUnit}?${params}`);
   };
 
+  // Loading state - checking access
+  if (checkingAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No Access - Show Free Trial Prompt (similar to Full Exam page)
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12">
+        <div className="container mx-auto max-w-4xl px-4">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full mb-4">
+              <Lock className="h-10 w-10 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Practice Tests
+            </h1>
+            <h2 className="text-xl text-gray-600">
+              Unit-by-Unit AP CS A Practice
+            </h2>
+          </div>
+
+          {/* Premium Features */}
+          <Card className="p-8 mb-6 border-2 border-blue-300 bg-gradient-to-br from-white to-blue-50">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full font-bold mb-4">
+                <Star className="h-5 w-5" />
+                PRACTICE ACCESS REQUIRED
+              </div>
+              <p className="text-gray-700">
+                Unlock unlimited practice tests to master every AP CS A concept!
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">All 10 AP Units</p>
+                  <p className="text-sm text-gray-600">Practice every topic from Primitive Types to Recursion</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Adaptive Difficulty</p>
+                  <p className="text-sm text-gray-600">Questions adjust to your skill level automatically</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Timed Practice Mode</p>
+                  <p className="text-sm text-gray-600">Simulate real exam conditions with countdown timers</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Detailed Explanations</p>
+                  <p className="text-sm text-gray-600">Learn from every question with step-by-step solutions</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Progress Tracking</p>
+                  <p className="text-sm text-gray-600">See your mastery level for each unit and topic</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">AI-Powered Insights</p>
+                  <p className="text-sm text-gray-600">Get personalized recommendations after each session</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg p-6 border-2 border-blue-300">
+              <div className="flex items-start gap-3">
+                <TrendingUp className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-gray-900 mb-2">Why Practice Tests?</p>
+                  <p className="text-sm text-gray-700">
+                    Targeted practice is the most effective way to prepare for the AP exam. 
+                    Our practice tests let you focus on specific units, identify weak spots, 
+                    and build confidence before taking the full exam. Studies show that students 
+                    who practice regularly score 1-2 points higher on the AP exam!
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Try Free Diagnostic - Primary CTA */}
+          <Card className="p-8 mb-6 border-2 border-green-400 bg-gradient-to-br from-white to-green-50">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mb-4">
+                <GraduationCap className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Start with Our Free Diagnostic Test!
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Take a free 10-question diagnostic to assess your current level and get personalized recommendations.
+              </p>
+              <Button
+                onClick={() => router.push('/dashboard/free-trial')}
+                size="lg"
+                className="px-8 py-6 text-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              >
+                <Target className="h-5 w-5 mr-2" />
+                Take Free Diagnostic Test
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
+            </div>
+          </Card>
+
+          {/* Contact for Access */}
+          <Card className="p-8 bg-gray-50">
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Want Full Practice Test Access?
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Contact your instructor or course administrator to get access to unlimited practice tests.
+              </p>
+              <p className="text-sm text-gray-500">
+                If you believe you should have access, please contact support or check with your instructor.
+              </p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading units
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
         <div className="text-center">
-          <div className="mx-auto h-10 w-10 sm:h-12 sm:w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
-          <p className="mt-4 text-sm sm:text-base text-gray-600">Loading units...</p>
+          <div className="mx-auto h-12 w-12 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent" />
+          <p className="mt-4 text-gray-600">Loading units...</p>
         </div>
       </div>
     );
@@ -89,6 +285,7 @@ function PracticePageContent() {
 
   const selectedUnitData = units.find(u => u.id === selectedUnit);
 
+  // Has Access - Show Normal Practice Page
   return (
     <div className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
@@ -256,7 +453,7 @@ function PracticePageContent() {
           </div>
         </Card>
 
-        {/* Units Grid - Responsive */}
+        {/* Units Grid */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
           {units.map((unit) => {
             const hasQuestions = (unit.questionCount || 0) > 0;
@@ -314,11 +511,7 @@ function PracticePageContent() {
                     {unit.description}
                   </p>
 
-                  {hasQuestions ? (
-                    <div className="mb-3 sm:mb-4 flex items-center gap-2 text-xs sm:text-sm text-gray-600">
-                  
-                    </div>
-                  ) : (
+                  {!hasQuestions && (
                     <div className="mb-3 sm:mb-4 rounded-lg bg-yellow-50 p-3 border border-yellow-200">
                       <div className="flex items-start gap-2">
                         <AlertCircle className="h-4 w-4 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -340,38 +533,21 @@ function PracticePageContent() {
                       Start Practice Test
                     </Button>
                   ) : (
-                    <div className="space-y-2">
-                      <Button 
-                        className="w-full gap-2 text-sm sm:text-base" 
-                        disabled
-                        variant="secondary"
-                      >
-                        <Lock className="h-4 w-4" />
-                        Not Available
-                      </Button>
-                    </div>
+                    <Button 
+                      className="w-full gap-2 text-sm sm:text-base" 
+                      disabled
+                      variant="secondary"
+                    >
+                      <Lock className="h-4 w-4" />
+                      Not Available
+                    </Button>
                   )}
                 </div>
               </Card>
             );
           })}
         </div>
-
-        {/* Quick Stats - Responsive */}
-       
       </div>
     </div>
-  );
-}
-
-export default function PracticePage() {
-  return (
-    <ProtectedRoute 
-      requireFeature="practice_test"
-      requireCourse="apcs-a"
-      fallbackUrl="/dashboard"
-    >
-      <PracticePageContent />
-    </ProtectedRoute>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
@@ -11,16 +11,32 @@ import { LearningInsightsCard } from '@/components/practice/LearningInsightsCard
 import { SessionSummary } from '@/components/practice/SessionSummary';
 import { LoadingState } from '@/components/LoadingState';
 import { ErrorDisplay } from '@/components/ErrorDisplay';
-import { ProtectedRoute } from '@/components/ProtectedRoute';
-import { Clock, AlertTriangle } from 'lucide-react';
+import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { 
+  Clock, 
+  AlertTriangle, 
+  Lock, 
+  Star, 
+  CheckCircle, 
+  TrendingUp, 
+  GraduationCap, 
+  Target, 
+  ArrowRight 
+} from 'lucide-react';
 import type { Unit, Question, StudySession, AnswerResult, ProgressMetrics } from '@/types';
 
-function PracticeSessionContent() {
+export default function PracticeSessionPage() {
   const params = useParams();
   const router = useRouter();
   const { user } = useAuth();
   const unitId = params.unitId as string;
 
+  // Access control states
+  const [checkingAccess, setCheckingAccess] = useState(true);
+  const [hasAccess, setHasAccess] = useState(false);
+
+  // Session states
   const [unit, setUnit] = useState<Unit | null>(null);
   const [session, setSession] = useState<StudySession | null>(null);
   const [currentQuestion, setCurrentQuestion] = useState<Question | null>(null);
@@ -41,98 +57,208 @@ function PracticeSessionContent() {
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load session from localStorage or create new one
+  // ============================================
+  // PREFETCHING: Store next question in advance
+  // ============================================
+  const [prefetchedQuestion, setPrefetchedQuestion] = useState<Question | null>(null);
+  const [isPrefetching, setIsPrefetching] = useState(false);
+  const prefetchAbortRef = useRef<AbortController | null>(null);
+
+  // Check access first
   useEffect(() => {
-    const initializeSession = async () => {
-      if (!user) return;
+    checkAccessPermissions();
+  }, []);
 
-      try {
-        setLoading(true);
-        setError(null);
+  const checkAccessPermissions = async () => {
+    try {
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        router.push('/login');
+        return;
+      }
 
-        // Get settings from query params or localStorage
-        const urlParams = new URLSearchParams(window.location.search);
-        const questionsParam = urlParams.get('questions');
-        const timedParam = urlParams.get('timed');
-        const timeParam = urlParams.get('timePerQuestion');
-        
-        const storedTarget = localStorage.getItem('targetQuestions');
-        const storedTimed = localStorage.getItem('isTimedMode');
-        const storedTime = localStorage.getItem('timePerQuestion');
-
-        const target = questionsParam ? parseInt(questionsParam) : (storedTarget ? parseInt(storedTarget) : 10);
-        const timed = timedParam ? timedParam === 'true' : (storedTimed === 'true');
-        const time = timeParam ? parseInt(timeParam) : (storedTime ? parseInt(storedTime) : 90);
-
-        setTargetQuestions(target);
-        setIsTimedMode(timed);
-        setTimePerQuestion(time);
-        setTimeRemaining(time);
-
-        localStorage.setItem('targetQuestions', target.toString());
-        localStorage.setItem('isTimedMode', timed.toString());
-        localStorage.setItem('timePerQuestion', time.toString());
-
-        // Load unit data
-        const unitResponse = await api.getUnit(unitId);
-        setUnit(unitResponse.data);
-
-        // Check for existing session in localStorage
-        const storedSessionId = localStorage.getItem(`session_${unitId}`);
-        
-        if (storedSessionId) {
-          try {
-            const sessionData = JSON.parse(localStorage.getItem(`sessionData_${unitId}`) || '{}');
-            setSession(sessionData.session);
-            setAnsweredQuestions(sessionData.answeredQuestions || []);
-            
-            await loadProgress();
-            
-            const questionResponse = await api.getNextQuestion(
-              user.userId,
-              storedSessionId,
-              unitId,
-              sessionData.answeredQuestions || []
-            );
-
-            if (questionResponse.data.question) {
-              console.log('📝 Loaded question:', questionResponse.data.question.difficulty);
-              setCurrentQuestion(questionResponse.data.question);
-              setQuestionStartTime(Date.now());
-              if (timed) {
-                setTimeRemaining(time);
-              }
-            } else {
-              await loadSessionSummary();
-            }
-          } catch (error) {
-            console.error('Failed to resume session, starting new one:', error);
-            localStorage.removeItem(`session_${unitId}`);
-            localStorage.removeItem(`sessionData_${unitId}`);
-            await startNewSession(target);
-          }
-        } else {
-          await startNewSession(target);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/my-access`,
+        {
+          headers: { Authorization: `Bearer ${token}` }
         }
-      } catch (error: any) {
-        console.error('Failed to initialize session:', error);
-        setError(
-          error.message || 
-          'Failed to start practice session. Please check your connection and try again.'
-        );
-      } finally {
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        console.log('🔐 Access check:', data);
+        
+        const canAccess = data.hasPracticeTestAccess || data.hasFullAccess || data.isAdmin || false;
+        setHasAccess(canAccess);
+        
+        if (!canAccess) {
+          setLoading(false);
+        }
+      } else {
+        setHasAccess(false);
         setLoading(false);
       }
-    };
+    } catch (error) {
+      console.error('Failed to check access:', error);
+      setHasAccess(false);
+      setLoading(false);
+    } finally {
+      setCheckingAccess(false);
+    }
+  };
 
-    initializeSession();
+  // Initialize session after access is confirmed
+  useEffect(() => {
+    if (!checkingAccess && hasAccess && user) {
+      initializeSession();
+    }
 
     return () => {
       if (timerRef.current) {
         clearInterval(timerRef.current);
       }
+      // Cancel any pending prefetch on unmount
+      if (prefetchAbortRef.current) {
+        prefetchAbortRef.current.abort();
+      }
     };
-  }, [user, unitId]);
+  }, [checkingAccess, hasAccess, user, unitId]);
+
+  // ============================================
+  // PREFETCH: Load next question in background
+  // ============================================
+  const prefetchNextQuestion = useCallback(async (
+    currentAnsweredQuestions: string[],
+    currentSession: StudySession
+  ) => {
+    if (!user || !currentSession) return;
+    
+    // Don't prefetch if we're at target questions
+    if (currentSession.totalQuestions >= targetQuestions - 1) {
+      console.log('🔮 Skipping prefetch - session near end');
+      return;
+    }
+
+    // Cancel any existing prefetch
+    if (prefetchAbortRef.current) {
+      prefetchAbortRef.current.abort();
+    }
+
+    // Create new abort controller
+    prefetchAbortRef.current = new AbortController();
+    setIsPrefetching(true);
+
+    try {
+      console.log('🔮 Prefetching next question...');
+      
+      const response = await api.getNextQuestion(
+        user.userId,
+        currentSession.id,
+        unitId,
+        currentAnsweredQuestions
+      );
+
+      if (response.data.question) {
+        console.log('✅ Prefetched question ready:', response.data.question.difficulty);
+        setPrefetchedQuestion(response.data.question);
+      }
+    } catch (error: any) {
+      // Don't log abort errors
+      if (error.name !== 'AbortError') {
+        console.log('⚠️ Prefetch failed (non-critical):', error.message);
+      }
+    } finally {
+      setIsPrefetching(false);
+    }
+  }, [user, unitId, targetQuestions]);
+
+  const initializeSession = async () => {
+    if (!user) return;
+
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get settings from query params or localStorage
+      const urlParams = new URLSearchParams(window.location.search);
+      const questionsParam = urlParams.get('questions');
+      const timedParam = urlParams.get('timed');
+      const timeParam = urlParams.get('timePerQuestion');
+      
+      const storedTarget = localStorage.getItem('targetQuestions');
+      const storedTimed = localStorage.getItem('isTimedMode');
+      const storedTime = localStorage.getItem('timePerQuestion');
+
+      const target = questionsParam ? parseInt(questionsParam) : (storedTarget ? parseInt(storedTarget) : 10);
+      const timed = timedParam ? timedParam === 'true' : (storedTimed === 'true');
+      const time = timeParam ? parseInt(timeParam) : (storedTime ? parseInt(storedTime) : 90);
+
+      setTargetQuestions(target);
+      setIsTimedMode(timed);
+      setTimePerQuestion(time);
+      setTimeRemaining(time);
+
+      localStorage.setItem('targetQuestions', target.toString());
+      localStorage.setItem('isTimedMode', timed.toString());
+      localStorage.setItem('timePerQuestion', time.toString());
+
+      // Load unit data
+      const unitResponse = await api.getUnit(unitId);
+      setUnit(unitResponse.data);
+
+      // Check for existing session in localStorage
+      const storedSessionId = localStorage.getItem(`session_${unitId}`);
+      
+      if (storedSessionId) {
+        try {
+          const sessionData = JSON.parse(localStorage.getItem(`sessionData_${unitId}`) || '{}');
+          setSession(sessionData.session);
+          setAnsweredQuestions(sessionData.answeredQuestions || []);
+          
+          await loadProgress();
+          
+          const questionResponse = await api.getNextQuestion(
+            user.userId,
+            storedSessionId,
+            unitId,
+            sessionData.answeredQuestions || []
+          );
+
+          if (questionResponse.data.question) {
+            console.log('📝 Loaded question:', questionResponse.data.question.difficulty);
+            setCurrentQuestion(questionResponse.data.question);
+            setQuestionStartTime(Date.now());
+            if (timed) {
+              setTimeRemaining(time);
+            }
+            
+            // Start prefetching next question
+            prefetchNextQuestion(
+              sessionData.answeredQuestions || [],
+              sessionData.session
+            );
+          } else {
+            await loadSessionSummary();
+          }
+        } catch (error) {
+          console.error('Failed to resume session, starting new one:', error);
+          localStorage.removeItem(`session_${unitId}`);
+          localStorage.removeItem(`sessionData_${unitId}`);
+          await startNewSession(target);
+        }
+      } else {
+        await startNewSession(target);
+      }
+    } catch (error: any) {
+      console.error('Failed to initialize session:', error);
+      setError(
+        error.message || 
+        'Failed to start practice session. Please check your connection and try again.'
+      );
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // Timer countdown effect
   useEffect(() => {
@@ -205,6 +331,9 @@ function PracticeSessionContent() {
 
       await loadProgress();
       await loadInsights();
+      
+      // Start prefetching next question immediately
+      prefetchNextQuestion([], response.data.session);
     } catch (error: any) {
       throw error;
     }
@@ -258,8 +387,10 @@ function PracticeSessionContent() {
       console.log('✅ Answer submitted. Result:', response.data.isCorrect ? 'Correct' : 'Incorrect');
       console.log('📊 New difficulty level:', response.data.progress?.currentDifficulty);
 
+      const newAnsweredQuestions = [...answeredQuestions, currentQuestion.id];
+      
       setAnswerResult(response.data);
-      setAnsweredQuestions([...answeredQuestions, currentQuestion.id]);
+      setAnsweredQuestions(newAnsweredQuestions);
 
       if (response.data.progress) {
         setProgress(response.data.progress);
@@ -270,8 +401,13 @@ function PracticeSessionContent() {
         
         localStorage.setItem(`sessionData_${unitId}`, JSON.stringify({
           session: response.data.session,
-          answeredQuestions: [...answeredQuestions, currentQuestion.id],
+          answeredQuestions: newAnsweredQuestions,
         }));
+        
+        // Clear prefetched question since difficulty may have changed
+        // and prefetch a new one based on updated progress
+        setPrefetchedQuestion(null);
+        prefetchNextQuestion(newAnsweredQuestions, response.data.session);
       }
 
       loadInsights();
@@ -300,7 +436,30 @@ function PracticeSessionContent() {
       setAnswerResult(null);
       setError(null);
       
-      console.log('🔄 Getting next question...');
+      // ============================================
+      // USE PREFETCHED QUESTION IF AVAILABLE
+      // ============================================
+      if (prefetchedQuestion) {
+        console.log('⚡ Using prefetched question (instant load):', prefetchedQuestion.difficulty);
+        setCurrentQuestion(prefetchedQuestion);
+        setQuestionStartTime(Date.now());
+        setPrefetchedQuestion(null);
+        
+        if (isTimedMode) {
+          setTimeRemaining(timePerQuestion);
+        }
+        
+        await loadProgress();
+        
+        // Prefetch the next one
+        prefetchNextQuestion(answeredQuestions, session);
+        
+        setIsLoadingNext(false);
+        return;
+      }
+      
+      // Fallback: Fetch if no prefetched question available
+      console.log('🔄 Getting next question (no prefetch available)...');
       
       const response = await api.getNextQuestion(
         user.userId,
@@ -325,6 +484,9 @@ function PracticeSessionContent() {
       }
       
       await loadProgress();
+      
+      // Prefetch the next one
+      prefetchNextQuestion(answeredQuestions, session);
     } catch (error: any) {
       console.error('Failed to get next question:', error);
       
@@ -348,7 +510,10 @@ function PracticeSessionContent() {
     if (!session) return;
 
     try {
+      console.log('📊 Loading session summary with AI insights...');
       const response = await api.endPracticeSession(session.id);
+      
+      console.log('✅ Session summary loaded:', response.data.summary);
       setSessionSummary(response.data.summary);
       
       localStorage.removeItem(`session_${unitId}`);
@@ -366,9 +531,15 @@ function PracticeSessionContent() {
     router.push('/dashboard');
   };
 
+  const handleReturnToPractice = () => {
+    router.push('/dashboard/practice');
+  };
+
   const handleRetry = () => {
     setError(null);
     setLoading(true);
+    setSessionSummary(null);
+    setPrefetchedQuestion(null);
     localStorage.removeItem(`session_${unitId}`);
     localStorage.removeItem(`sessionData_${unitId}`);
     window.location.reload();
@@ -379,6 +550,139 @@ function PracticeSessionContent() {
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // Loading state - checking access
+  if (checkingAccess) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // No Access - Show Upgrade Page
+  if (!hasAccess) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12">
+        <div className="container mx-auto max-w-4xl px-4">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full mb-4">
+              <Lock className="h-10 w-10 text-white" />
+            </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-2">
+              Practice Tests
+            </h1>
+            <h2 className="text-xl text-gray-600">
+              Unit-by-Unit AP CS A Practice
+            </h2>
+          </div>
+
+          {/* Premium Features */}
+          <Card className="p-8 mb-6 border-2 border-blue-300 bg-gradient-to-br from-white to-blue-50">
+            <div className="text-center mb-6">
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full font-bold mb-4">
+                <Star className="h-5 w-5" />
+                PRACTICE ACCESS REQUIRED
+              </div>
+              <p className="text-gray-700">
+                Unlock unlimited practice tests to master every AP CS A concept!
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-4 mb-6">
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">All 10 AP Units</p>
+                  <p className="text-sm text-gray-600">Practice every topic from Primitive Types to Recursion</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Adaptive Difficulty</p>
+                  <p className="text-sm text-gray-600">Questions adjust to your skill level automatically</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Timed Practice Mode</p>
+                  <p className="text-sm text-gray-600">Simulate real exam conditions with countdown timers</p>
+                </div>
+              </div>
+
+              <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
+                <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-semibold text-gray-900">Detailed Explanations</p>
+                  <p className="text-sm text-gray-600">Learn from every question with step-by-step solutions</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-r from-blue-100 to-indigo-100 rounded-lg p-6 border-2 border-blue-300">
+              <div className="flex items-start gap-3">
+                <TrendingUp className="h-6 w-6 text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="font-bold text-gray-900 mb-2">Why Practice Tests?</p>
+                  <p className="text-sm text-gray-700">
+                    Students who practice regularly score 1-2 points higher on the AP exam. 
+                    Targeted practice helps you identify weak spots and build confidence.
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+
+          {/* Try Free Diagnostic */}
+          <Card className="p-8 mb-6 border-2 border-green-400 bg-gradient-to-br from-white to-green-50">
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mb-4">
+                <GraduationCap className="h-8 w-8 text-white" />
+              </div>
+              <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                Start with Our Free Diagnostic Test!
+              </h3>
+              <p className="text-gray-600 mb-6">
+                Take a free 10-question diagnostic to assess your current level and get personalized recommendations.
+              </p>
+              <Button
+                onClick={() => router.push('/dashboard/free-trial')}
+                size="lg"
+                className="px-8 py-6 text-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700"
+              >
+                <Target className="h-5 w-5 mr-2" />
+                Take Free Diagnostic Test
+                <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
+            </div>
+          </Card>
+
+          {/* Contact for Access */}
+          <Card className="p-8 bg-gray-50">
+            <div className="text-center">
+              <h3 className="text-xl font-bold text-gray-900 mb-3">
+                Want Full Practice Test Access?
+              </h3>
+              <p className="text-gray-600 mb-4">
+                Contact your instructor or course administrator to get access to unlimited practice tests.
+              </p>
+              <p className="text-sm text-gray-500">
+                If you believe you should have access, please contact support or check with your instructor.
+              </p>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return <LoadingState message="Loading practice session..." fullScreen />;
@@ -427,6 +731,9 @@ function PracticeSessionContent() {
             <p className="mt-1 text-gray-600">
               Question {(session?.totalQuestions || 0) + 1} of {targetQuestions}
               {isTimedMode && ' • Timed Mode'}
+              {isPrefetching && (
+                <span className="ml-2 text-xs text-indigo-500">• Preloading next...</span>
+              )}
             </p>
           </div>
           
@@ -534,17 +841,5 @@ function PracticeSessionContent() {
         </div>
       </div>
     </div>
-  );
-}
-
-export default function PracticePage() {
-  return (
-    <ProtectedRoute 
-      requireFeature="practice_test"
-      requireCourse="apcs-a"
-      fallbackUrl="/dashboard"
-    >
-      <PracticeSessionContent />
-    </ProtectedRoute>
   );
 }

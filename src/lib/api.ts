@@ -4,9 +4,14 @@ import type { PartResponse } from '@/types/exam';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // Retry configuration
-const MAX_RETRIES = 3;
-const RETRY_DELAY = 1000;
-const TIMEOUT = 30000;
+const MAX_RETRIES = 2; // Reduced from 3
+const RETRY_DELAY = 500; // Reduced from 1000
+const TIMEOUT = 15000; // Reduced from 30000
+
+// Request deduplication cache
+const pendingRequests = new Map<string, Promise<any>>();
+const responseCache = new Map<string, { data: any; timestamp: number }>();
+const CACHE_TTL = 30000; // 30 seconds for frequently accessed data
 
 class APIError extends Error {
   constructor(
@@ -22,27 +27,25 @@ class APIError extends Error {
 // Get auth headers with JWT token
 const getAuthHeaders = () => {
   if (typeof window === 'undefined') return { 'Content-Type': 'application/json' };
-  
+
   const token = TokenManager.getAccessToken();
   return {
     'Content-Type': 'application/json',
-    ...(token && { 'Authorization': `Bearer ${token}` }),
+    ...(token && { Authorization: `Bearer ${token}` }),
   };
 };
 
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function isRetryableError(error: any, statusCode?: number): boolean {
-  // Check statusCode first (doesn't depend on error object)
   if (statusCode && statusCode >= 500 && statusCode !== 501) {
     return true;
   }
-  
+
   if (statusCode === 429) {
     return true;
   }
 
-  // Now check if error exists before accessing properties
   if (!error) {
     return false;
   }
@@ -50,17 +53,18 @@ function isRetryableError(error: any, statusCode?: number): boolean {
   if (error instanceof TypeError && error.message && error.message.includes('fetch')) {
     return true;
   }
-  
+
   if (error.name === 'AbortError') {
     return true;
   }
-  
+
   return false;
 }
+
 async function fetchWithTimeout(url: string, options: RequestInit = {}, timeout = TIMEOUT) {
   const controller = new AbortController();
   const id = setTimeout(() => controller.abort(), timeout);
-  
+
   try {
     const response = await fetch(url, {
       ...options,
@@ -83,31 +87,25 @@ async function handleResponse(
 ): Promise<any> {
   try {
     const response = await fetchWithTimeout(url, options);
-    
+
     // Handle token expiration with auto-refresh
     if (response.status === 401 && !hasAttemptedRefresh) {
       const errorData = await response.json().catch(() => ({}));
-      
+
       if (errorData.code === 'TOKEN_EXPIRED') {
-        console.log('🔄 Token expired, attempting refresh...');
-        
         const newToken = await TokenManager.refreshAccessToken();
-        
+
         if (newToken) {
-          console.log('✅ Token refreshed successfully');
-          
-          // Retry request with new token
           const newOptions = {
             ...options,
             headers: {
               ...options.headers,
-              'Authorization': `Bearer ${newToken}`,
+              Authorization: `Bearer ${newToken}`,
             },
           };
-          
+
           return handleResponse(url, newOptions, context, retryCount, true);
         } else {
-          console.error('❌ Token refresh failed, redirecting to login');
           TokenManager.clearTokens();
           if (typeof window !== 'undefined') {
             window.location.href = '/login';
@@ -116,11 +114,11 @@ async function handleResponse(
         }
       }
     }
-    
+
     if (!response.ok) {
       let errorMessage = 'An error occurred';
       let errorData: any = null;
-      
+
       try {
         errorData = await response.json();
         errorMessage = errorData.message || errorData.error || errorMessage;
@@ -129,81 +127,101 @@ async function handleResponse(
           errorMessage = await response.text();
         } catch {}
       }
-      
+
       if (isRetryableError(null, response.status) && retryCount < MAX_RETRIES) {
-        console.warn(`⚠️ API Error (attempt ${retryCount + 1}/${MAX_RETRIES}):`, {
-          context,
-          status: response.status,
-          url,
-        });
-        
         await sleep(RETRY_DELAY * Math.pow(2, retryCount));
         return handleResponse(url, options, context, retryCount + 1, hasAttemptedRefresh);
       }
-      
-      console.error('❌ API Error:', {
-        context,
-        status: response.status,
-        statusText: response.statusText,
-        url,
-        message: errorMessage,
-        data: errorData,
-      });
-      
+
       throw new APIError(errorMessage, response.status, context);
     }
-    
+
     return response.json();
   } catch (error: any) {
     if (isRetryableError(error) && retryCount < MAX_RETRIES) {
-      console.warn(`⚠️ Network Error (attempt ${retryCount + 1}/${MAX_RETRIES}):`, {
-        context,
-        error: error.message,
-        url,
-      });
-      
       await sleep(RETRY_DELAY * Math.pow(2, retryCount));
       return handleResponse(url, options, context, retryCount + 1, hasAttemptedRefresh);
     }
-    
-    console.error('❌ Request Failed:', {
-      context,
-      error: error.message,
-      url,
-      retries: retryCount,
-    });
-    
+
     if (error.name === 'AbortError') {
-      throw new APIError('Request timed out. Please check your connection and try again.', undefined, context);
+      throw new APIError(
+        'Request timed out. Please check your connection and try again.',
+        undefined,
+        context
+      );
     }
-    
+
     if (error instanceof TypeError && error.message.includes('fetch')) {
-      throw new APIError('Unable to connect to server. Please check your internet connection.', undefined, context);
+      throw new APIError(
+        'Unable to connect to server. Please check your internet connection.',
+        undefined,
+        context
+      );
     }
-    
+
     throw error;
   }
 }
 
+// Deduplicated fetch with optional caching
+async function cachedFetch(
+  cacheKey: string,
+  fetchFn: () => Promise<any>,
+  ttl: number = CACHE_TTL
+): Promise<any> {
+  // Check cache first
+  const cached = responseCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < ttl) {
+    return cached.data;
+  }
+
+  // Check for pending request (deduplication)
+  const pending = pendingRequests.get(cacheKey);
+  if (pending) {
+    return pending;
+  }
+
+  // Make the request
+  const promise = fetchFn()
+    .then((data) => {
+      // Cache the response
+      responseCache.set(cacheKey, { data, timestamp: Date.now() });
+      return data;
+    })
+    .finally(() => {
+      // Clean up pending request after a short delay
+      setTimeout(() => pendingRequests.delete(cacheKey), 100);
+    });
+
+  pendingRequests.set(cacheKey, promise);
+  return promise;
+}
+
 // Main API for practice, progress, analytics
 export const api = {
-  // Units
+  // Units - CACHED
   async getUnits() {
-    const url = `${API_BASE_URL}/units`;
-    return handleResponse(url, { headers: getAuthHeaders() }, 'getUnits');
+    return cachedFetch('getUnits', () => {
+      const url = `${API_BASE_URL}/units`;
+      return handleResponse(url, { headers: getAuthHeaders() }, 'getUnits');
+    }, 60000); // Cache for 1 minute
   },
 
   async getUnit(unitId: string) {
-    const url = `${API_BASE_URL}/units/${unitId}`;
-    return handleResponse(url, { headers: getAuthHeaders() }, 'getUnit');
+    return cachedFetch(`getUnit_${unitId}`, () => {
+      const url = `${API_BASE_URL}/units/${unitId}`;
+      return handleResponse(url, { headers: getAuthHeaders() }, 'getUnit');
+    }, 60000);
   },
 
   async getTopicsByUnit(unitId: string) {
-    const url = `${API_BASE_URL}/units/${unitId}/topics`;
-    return handleResponse(url, { headers: getAuthHeaders() }, 'getTopicsByUnit');
+    return cachedFetch(`getTopics_${unitId}`, () => {
+      const url = `${API_BASE_URL}/units/${unitId}/topics`;
+      return handleResponse(url, { headers: getAuthHeaders() }, 'getTopicsByUnit');
+    }, 60000);
   },
 
-  // Practice
+  // Practice - NO CACHE (dynamic data)
   async startPracticeSession(
     userId: string,
     unitId: string,
@@ -291,27 +309,33 @@ export const api = {
     );
   },
 
-  // Progress
+  // Progress - SHORT CACHE
   async getUserProgress(userId: string, unitId: string) {
-    const url = `${API_BASE_URL}/progress/${userId}/${unitId}`;
-    return handleResponse(url, { headers: getAuthHeaders() }, 'getUserProgress');
+    return cachedFetch(`progress_${userId}_${unitId}`, () => {
+      const url = `${API_BASE_URL}/progress/${userId}/${unitId}`;
+      return handleResponse(url, { headers: getAuthHeaders() }, 'getUserProgress');
+    }, 5000); // 5 second cache
   },
 
   async getLearningInsights(userId: string, unitId: string) {
-    const url = `${API_BASE_URL}/progress/insights/${userId}/${unitId}`;
-    return handleResponse(url, { headers: getAuthHeaders() }, 'getLearningInsights');
+    return cachedFetch(`insights_${userId}_${unitId}`, () => {
+      const url = `${API_BASE_URL}/progress/insights/${userId}/${unitId}`;
+      return handleResponse(url, { headers: getAuthHeaders() }, 'getLearningInsights');
+    }, 10000); // 10 second cache
   },
 
   // Dashboard
   async getDashboardOverview(userId: string) {
-    const url = `${API_BASE_URL}/progress/dashboard/${userId}/overview`;
-    return handleResponse(url, { headers: getAuthHeaders() }, 'getDashboardOverview');
+    return cachedFetch(`dashboard_${userId}`, () => {
+      const url = `${API_BASE_URL}/progress/dashboard/${userId}/overview`;
+      return handleResponse(url, { headers: getAuthHeaders() }, 'getDashboardOverview');
+    }, 30000);
   },
 
   async getPerformanceHistory(userId: string, days = 30, unitId?: string) {
     const params = new URLSearchParams({ days: days.toString() });
     if (unitId) params.append('unitId', unitId);
-    
+
     const url = `${API_BASE_URL}/progress/dashboard/${userId}/performance-history?${params}`;
     return handleResponse(url, { headers: getAuthHeaders() }, 'getPerformanceHistory');
   },
@@ -397,16 +421,16 @@ export const api = {
   async bulkUploadQuestions(file: File) {
     const formData = new FormData();
     formData.append('file', file);
-    
+
     const token = TokenManager.getAccessToken();
-    
+
     const url = `${API_BASE_URL}/admin/questions/bulk-upload`;
     return handleResponse(
       url,
       {
         method: 'POST',
         headers: {
-          ...(token && { 'Authorization': `Bearer ${token}` }),
+          ...(token && { Authorization: `Bearer ${token}` }),
         },
         body: formData,
       },
@@ -419,7 +443,7 @@ export const api = {
     const params = new URLSearchParams();
     if (unitId) params.append('unitId', unitId);
     if (timeRange) params.append('timeRange', timeRange);
-    
+
     const url = `${API_BASE_URL}/analytics?${params}`;
     return handleResponse(url, { headers: getAuthHeaders() }, 'getAnalytics');
   },
@@ -428,7 +452,7 @@ export const api = {
     const params = new URLSearchParams();
     if (unitId) params.append('unitId', unitId);
     if (timeRange) params.append('timeRange', timeRange);
-    
+
     const url = `${API_BASE_URL}/analytics/download?${params}`;
     return handleResponse(url, { headers: getAuthHeaders() }, 'downloadAnalyticsReport');
   },
@@ -446,17 +470,30 @@ export const api = {
       'syncProgress'
     );
   },
+
+  // Cache invalidation helper
+  invalidateCache(pattern?: string) {
+    if (pattern) {
+      for (const key of responseCache.keys()) {
+        if (key.includes(pattern)) {
+          responseCache.delete(key);
+        }
+      }
+    } else {
+      responseCache.clear();
+    }
+  },
 };
 
 // Exam API for full exam simulation
 export const examApi = {
-  // Exam Units
   async getExamUnits() {
-    const url = `${API_BASE_URL}/admin/exam-bank/units`;
-    return handleResponse(url, { headers: getAuthHeaders() }, 'getExamUnits');
+    return cachedFetch('examUnits', () => {
+      const url = `${API_BASE_URL}/admin/exam-bank/units`;
+      return handleResponse(url, { headers: getAuthHeaders() }, 'getExamUnits');
+    }, 60000);
   },
 
-  // Exam Bank Questions
   async getExamBankQuestions(filters?: {
     unitId?: string;
     questionType?: string;
@@ -474,8 +511,10 @@ export const examApi = {
   },
 
   async getQuestionCounts() {
-    const url = `${API_BASE_URL}/admin/exam-bank/questions/counts`;
-    return handleResponse(url, { headers: getAuthHeaders() }, 'getQuestionCounts');
+    return cachedFetch('examQuestionCounts', () => {
+      const url = `${API_BASE_URL}/admin/exam-bank/questions/counts`;
+      return handleResponse(url, { headers: getAuthHeaders() }, 'getQuestionCounts');
+    }, 30000);
   },
 
   async createMCQQuestion(data: any) {
@@ -528,27 +567,26 @@ export const examApi = {
       'deleteQuestion'
     );
   },
+
   async importMCQToExamBank(questionIds: string[]) {
-  const url = `${API_BASE_URL}/admin/exam-bank/import`;
-  return handleResponse(
-    url,
-    {
-      method: 'POST',
-      headers: getAuthHeaders(),
-      body: JSON.stringify({ questionIds }),
-    },
-    'importMCQToExamBank'
-  );
-},
+    const url = `${API_BASE_URL}/admin/exam-bank/import`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ questionIds }),
+      },
+      'importMCQToExamBank'
+    );
+  },
 
-// Get available practice questions for import (not already in exam bank)
-async getAvailablePracticeQuestions(unitId?: string) {
-  const params = unitId ? `?unitId=${unitId}` : '';
-  const url = `${API_BASE_URL}/admin/practice-questions/available${params}`;
-  return handleResponse(url, { headers: getAuthHeaders() }, 'getAvailablePracticeQuestions');
-},
+  async getAvailablePracticeQuestions(unitId?: string) {
+    const params = unitId ? `?unitId=${unitId}` : '';
+    const url = `${API_BASE_URL}/admin/practice-questions/available${params}`;
+    return handleResponse(url, { headers: getAuthHeaders() }, 'getAvailablePracticeQuestions');
+  },
 
-  // Full Exam
   async startFullExam(userId: string) {
     const url = `${API_BASE_URL}/full-exam/start`;
     return handleResponse(
@@ -599,11 +637,7 @@ async getAvailablePracticeQuestions(unitId?: string) {
     );
   },
 
-  async flagMCQForReview(data: {
-    examAttemptId: string;
-    orderIndex: number;
-    flagged: boolean;
-  }) {
+  async flagMCQForReview(data: { examAttemptId: string; orderIndex: number; flagged: boolean }) {
     const url = `${API_BASE_URL}/full-exam/mcq/flag`;
     return handleResponse(
       url,
@@ -616,10 +650,7 @@ async getAvailablePracticeQuestions(unitId?: string) {
     );
   },
 
-  async submitFullExam(data: {
-    examAttemptId: string;
-    totalTimeSpent: number;
-  }) {
+  async submitFullExam(data: { examAttemptId: string; totalTimeSpent: number }) {
     const url = `${API_BASE_URL}/full-exam/submit`;
     return handleResponse(
       url,
