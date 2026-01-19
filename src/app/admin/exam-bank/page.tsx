@@ -94,12 +94,7 @@ export default function ExamBankPage() {
         </div>
         <div className="flex gap-3">
       
-          <Link href="/admin/exam-bank/create-mcq">
-            <Button>
-              <Plus className="h-4 w-4 mr-2" />
-              Add MCQ
-            </Button>
-          </Link>
+  
           <Link href="/admin/exam-bank/create-frq">
             <Button>
               <Plus className="h-4 w-4 mr-2" />

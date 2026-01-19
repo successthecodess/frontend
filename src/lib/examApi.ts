@@ -212,19 +212,6 @@ export const examApi = {
     return handleResponse(url, { headers: getAuthHeaders() }, 'getQuestionCounts');
   },
 
-  async createMCQQuestion(data: any) {
-    const url = `${API_BASE_URL}/admin/exam-bank/questions/mcq`;
-    return handleResponse(
-      url,
-      {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify(data),
-      },
-      'createMCQQuestion'
-    );
-  },
-
   async createFRQQuestion(data: any) {
     const url = `${API_BASE_URL}/admin/exam-bank/questions/frq`;
     return handleResponse(
