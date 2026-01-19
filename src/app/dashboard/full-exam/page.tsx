@@ -15,9 +15,20 @@ import {
   ArrowRight,
   Lock,
   Star,
-  TrendingUp
+  TrendingUp,
+  Loader2,
+  Sparkles
 } from 'lucide-react';
 import { examApi } from '@/lib/examApi';
+
+// Loading steps for optimistic UI
+const LOADING_STEPS = [
+  { id: 1, text: 'Preparing your exam environment...', icon: Sparkles },
+  { id: 2, text: 'Selecting 42 MCQ questions...', icon: FileText },
+  { id: 3, text: 'Loading FRQ challenges...', icon: Code },
+  { id: 4, text: 'Initializing timer...', icon: Clock },
+  { id: 5, text: 'Almost ready!', icon: CheckCircle },
+];
 
 export default function FullExamStartPage() {
   const router = useRouter();
@@ -26,10 +37,37 @@ export default function FullExamStartPage() {
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
   const [agreedToRules, setAgreedToRules] = useState(false);
+  
+  // Optimistic UI states
+  const [currentStep, setCurrentStep] = useState(0);
+  const [loadingMessage, setLoadingMessage] = useState('');
 
   useEffect(() => {
     checkAccess();
   }, []);
+
+  // Animate through loading steps
+  useEffect(() => {
+    if (!loading) return;
+
+    const stepInterval = setInterval(() => {
+      setCurrentStep((prev) => {
+        if (prev < LOADING_STEPS.length - 1) {
+          return prev + 1;
+        }
+        return prev;
+      });
+    }, 800);
+
+    return () => clearInterval(stepInterval);
+  }, [loading]);
+
+  // Update loading message based on current step
+  useEffect(() => {
+    if (currentStep < LOADING_STEPS.length) {
+      setLoadingMessage(LOADING_STEPS[currentStep].text);
+    }
+  }, [currentStep]);
 
   const checkAccess = async () => {
     try {
@@ -64,26 +102,157 @@ export default function FullExamStartPage() {
   const handleStartExam = async () => {
     if (!user || !agreedToRules) return;
 
+    // Start loading immediately for optimistic UI
     setLoading(true);
+    setCurrentStep(0);
 
     try {
       const response = await examApi.startFullExam(user.userId);
       const { examAttemptId } = response.data;
 
+      // Small delay to show final step before navigation
+      setCurrentStep(LOADING_STEPS.length - 1);
+      await new Promise(resolve => setTimeout(resolve, 500));
+
       // Navigate to exam
       router.push(`/dashboard/full-exam/${examAttemptId}`);
     } catch (error: any) {
       console.error('Failed to start exam:', error);
-      alert(error.message || 'Failed to start exam. Please try again.');
       setLoading(false);
+      setCurrentStep(0);
+      alert(error.message || 'Failed to start exam. Please try again.');
     }
   };
 
-  // Loading state
+  // Full-screen loading overlay
+  if (loading) {
+    return (
+      <div className="fixed inset-0 z-50 bg-gradient-to-br from-indigo-900 via-purple-900 to-indigo-900 flex items-center justify-center">
+        {/* Animated background */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse delay-1000"></div>
+          <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse delay-500"></div>
+        </div>
+
+        <div className="relative z-10 text-center px-4 max-w-lg">
+          {/* Main loading icon */}
+          <div className="relative mb-8">
+            <div className="w-24 h-24 mx-auto bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 shadow-2xl">
+              <GraduationCap className="h-12 w-12 text-white" />
+            </div>
+            {/* Spinning ring */}
+            <div className="absolute inset-0 w-24 h-24 mx-auto">
+              <svg className="w-full h-full animate-spin" viewBox="0 0 100 100">
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.1)"
+                  strokeWidth="4"
+                />
+                <circle
+                  cx="50"
+                  cy="50"
+                  r="45"
+                  fill="none"
+                  stroke="url(#gradient)"
+                  strokeWidth="4"
+                  strokeLinecap="round"
+                  strokeDasharray="70 200"
+                />
+                <defs>
+                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#818cf8" />
+                    <stop offset="100%" stopColor="#c084fc" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
+          </div>
+
+          {/* Title */}
+          <h2 className="text-3xl font-bold text-white mb-2">
+            Preparing Your Exam
+          </h2>
+          <p className="text-indigo-200 mb-8">
+            Setting up your personalized AP Computer Science A exam
+          </p>
+
+          {/* Progress steps */}
+          <div className="space-y-3 mb-8">
+            {LOADING_STEPS.map((step, index) => {
+              const StepIcon = step.icon;
+              const isActive = index === currentStep;
+              const isComplete = index < currentStep;
+
+              return (
+                <div
+                  key={step.id}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-500 ${
+                    isActive
+                      ? 'bg-white/20 backdrop-blur-sm scale-105 shadow-lg'
+                      : isComplete
+                      ? 'bg-white/10 backdrop-blur-sm'
+                      : 'bg-white/5'
+                  }`}
+                >
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all ${
+                    isActive
+                      ? 'bg-white text-indigo-600'
+                      : isComplete
+                      ? 'bg-green-500 text-white'
+                      : 'bg-white/10 text-white/50'
+                  }`}>
+                    {isComplete ? (
+                      <CheckCircle className="h-5 w-5" />
+                    ) : isActive ? (
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    ) : (
+                      <StepIcon className="h-4 w-4" />
+                    )}
+                  </div>
+                  <span className={`text-sm font-medium transition-all ${
+                    isActive
+                      ? 'text-white'
+                      : isComplete
+                      ? 'text-green-300'
+                      : 'text-white/50'
+                  }`}>
+                    {step.text}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Progress bar */}
+          <div className="w-full h-2 bg-white/10 rounded-full overflow-hidden mb-4">
+            <div
+              className="h-full bg-gradient-to-r from-indigo-400 to-purple-400 rounded-full transition-all duration-500 ease-out"
+              style={{ width: `${((currentStep + 1) / LOADING_STEPS.length) * 100}%` }}
+            />
+          </div>
+
+          <p className="text-indigo-300 text-sm">
+            {currentStep < LOADING_STEPS.length - 1 
+              ? 'Please wait while we prepare your exam...'
+              : 'Launching exam interface...'}
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  // Loading state for access check
   if (checkingAccess) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-purple-50">
+        <div className="text-center">
+          <div className="animate-spin h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full mx-auto mb-4"></div>
+          <p className="text-gray-600">Checking access...</p>
+        </div>
       </div>
     );
   }
@@ -413,7 +582,7 @@ export default function FullExamStartPage() {
               onChange={(e) => setAgreedToRules(e.target.checked)}
               className="w-5 h-5 text-indigo-600 border-gray-300 rounded focus:ring-indigo-500 mt-0.5"
             />
-            <label htmlFor="agree" className="text-gray-700">
+            <label htmlFor="agree" className="text-gray-700 cursor-pointer">
               I understand the exam format and instructions. I'm ready to begin the full AP Computer Science A exam simulation.
             </label>
           </div>
@@ -425,19 +594,10 @@ export default function FullExamStartPage() {
             onClick={handleStartExam}
             disabled={!agreedToRules || loading}
             size="lg"
-            className="px-8 py-6 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+            className="px-8 py-6 text-lg bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 hover:scale-105 hover:shadow-xl"
           >
-            {loading ? (
-              <>
-                <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full mr-3" />
-                Starting Exam...
-              </>
-            ) : (
-              <>
-                Start Exam
-                <ArrowRight className="h-5 w-5 ml-3" />
-              </>
-            )}
+            Start Exam
+            <ArrowRight className="h-5 w-5 ml-3" />
           </Button>
         </div>
 

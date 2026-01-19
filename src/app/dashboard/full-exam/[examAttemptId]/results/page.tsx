@@ -61,7 +61,6 @@ export default function ExamResultsPage() {
 
   const loadUserInfo = async () => {
     try {
-      // Get user info from localStorage or API
       const storedUser = localStorage.getItem('user');
       if (storedUser) {
         const user = JSON.parse(storedUser);
@@ -75,11 +74,7 @@ export default function ExamResultsPage() {
 
   // Calculate AP score based on MCQ alone (55% weight)
   const calculateMCQOnlyAPScore = (mcqScore: number) => {
-    // MCQ contributes 55% to total score
     const mcqWeighted = (mcqScore / 42) * 55;
-    
-    // Since FRQ is unknown, we calculate what AP score range this puts them in
-    // Assuming average FRQ performance (60% = 27 points)
     const estimatedTotal = mcqWeighted + (45 * 0.6);
     
     if (estimatedTotal >= 75) return 5;
@@ -87,6 +82,34 @@ export default function ExamResultsPage() {
     if (estimatedTotal >= 50) return 3;
     if (estimatedTotal >= 37) return 2;
     return 1;
+  };
+
+  // Generate AP score ranges based on MCQ score
+  const generateAPScoreRanges = (mcqScore: number) => {
+    const mcqWeighted = (mcqScore / 42) * 55;
+    
+    return [
+      {
+        label: 'If FRQ is Excellent (90%)',
+        score: mcqWeighted + (45 * 0.9),
+        apScore: mcqWeighted + (45 * 0.9) >= 75 ? 5 : mcqWeighted + (45 * 0.9) >= 62 ? 4 : mcqWeighted + (45 * 0.9) >= 50 ? 3 : mcqWeighted + (45 * 0.9) >= 37 ? 2 : 1,
+      },
+      {
+        label: 'If FRQ is Good (75%)',
+        score: mcqWeighted + (45 * 0.75),
+        apScore: mcqWeighted + (45 * 0.75) >= 75 ? 5 : mcqWeighted + (45 * 0.75) >= 62 ? 4 : mcqWeighted + (45 * 0.75) >= 50 ? 3 : mcqWeighted + (45 * 0.75) >= 37 ? 2 : 1,
+      },
+      {
+        label: 'If FRQ is Average (60%)',
+        score: mcqWeighted + (45 * 0.6),
+        apScore: mcqWeighted + (45 * 0.6) >= 75 ? 5 : mcqWeighted + (45 * 0.6) >= 62 ? 4 : mcqWeighted + (45 * 0.6) >= 50 ? 3 : mcqWeighted + (45 * 0.6) >= 37 ? 2 : 1,
+      },
+      {
+        label: 'If FRQ is Below Average (40%)',
+        score: mcqWeighted + (45 * 0.4),
+        apScore: mcqWeighted + (45 * 0.4) >= 75 ? 5 : mcqWeighted + (45 * 0.4) >= 62 ? 4 : mcqWeighted + (45 * 0.4) >= 50 ? 3 : mcqWeighted + (45 * 0.4) >= 37 ? 2 : 1,
+      },
+    ];
   };
 
   const handleScheduleReview = (frqNumber: number) => {
@@ -100,7 +123,7 @@ I recently completed a full practice exam and would like to schedule a review se
 Exam Details:
 - Exam Attempt ID: ${examAttemptId}
 - FRQ Number: ${frqNumber}
-- MCQ Score: ${results.mcqScore}/42 (${results.mcqPercentage?.toFixed(1)}%)
+- MCQ Score: ${results.mcqScore}/42 (${results.mcqPercentage?.toFixed(1) || 0}%)
 - Date Completed: ${new Date(results.submittedAt).toLocaleDateString()}
 
 I'd like to review my solution and get personalized feedback on:
@@ -118,7 +141,6 @@ ${userEmail}
 `
     );
 
-    // Open default email client with pre-filled content
     window.location.href = `mailto:daniel@enginearu.com?subject=${subject}&body=${body}`;
   };
 
@@ -132,12 +154,12 @@ I recently completed a full practice exam and would like to schedule a comprehen
 
 Exam Details:
 - Exam Attempt ID: ${examAttemptId}
-- MCQ Score: ${results.mcqScore}/42 (${results.mcqPercentage?.toFixed(1)}%)
+- MCQ Score: ${results.mcqScore}/42 (${results.mcqPercentage?.toFixed(1) || 0}%)
 - Date Completed: ${new Date(results.submittedAt).toLocaleDateString()}
 - Total Time: ${Math.floor((results.totalTimeSpent || 0) / 60)} minutes
 
 Areas I'd like to focus on:
-${results.weaknesses?.map((w: string) => `- ${w}`).join('\n')}
+${results.weaknesses?.map((w: string) => `- ${w}`).join('\n') || '- General improvement'}
 
 I'd like to review:
 1. All FRQ solutions with detailed feedback
@@ -164,14 +186,6 @@ ${userEmail}
     if (score === 3) return 'from-yellow-500 to-orange-500';
     if (score === 2) return 'from-orange-500 to-red-500';
     return 'from-red-500 to-red-700';
-  };
-
-  const getAPScoreTextColor = (score: number) => {
-    if (score === 5) return 'text-green-600';
-    if (score === 4) return 'text-blue-600';
-    if (score === 3) return 'text-yellow-600';
-    if (score === 2) return 'text-orange-600';
-    return 'text-red-600';
   };
 
   const getAPScoreLabel = (score: number) => {
@@ -230,6 +244,11 @@ ${userEmail}
 
   const mcqPerformance = getPerformanceLevel(results.mcqPercentage || 0);
   const mcqOnlyAPScore = calculateMCQOnlyAPScore(results.mcqScore || 0);
+  
+  // Use API data or generate locally
+  const apScoreRanges = results.apScoreRanges && results.apScoreRanges.length > 0 
+    ? results.apScoreRanges 
+    : generateAPScoreRanges(results.mcqScore || 0);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 py-12">
@@ -253,8 +272,8 @@ ${userEmail}
           <Card className="p-8 bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
             <div className="text-center">
               <p className="text-white/90 text-lg mb-2">MCQ Performance</p>
-              <div className="text-7xl font-bold mb-4">{results.mcqScore}/42</div>
-              <p className="text-2xl font-semibold mb-2">{results.mcqPercentage?.toFixed(1)}% Correct</p>
+              <div className="text-7xl font-bold mb-4">{results.mcqScore || 0}/42</div>
+              <p className="text-2xl font-semibold mb-2">{(results.mcqPercentage || 0).toFixed(1)}% Correct</p>
               <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-full px-6 py-3">
                 <Target className="h-5 w-5" />
                 <span className="font-semibold">Section I: Multiple Choice</span>
@@ -307,24 +326,24 @@ ${userEmail}
             AP Score Potential with Different FRQ Performance
           </h3>
           <p className="text-sm text-gray-600 mb-6">
-            Based on your MCQ score of {results.mcqScore}/42, here's your AP score potential:
+            Based on your MCQ score of {results.mcqScore || 0}/42, here&apos;s your AP score potential:
           </p>
 
           <div className="space-y-3">
-            {results.apScoreRanges?.map((range: any, index: number) => (
+            {apScoreRanges.map((range: any, index: number) => (
               <div
                 key={index}
-                className={`p-4 rounded-lg border-2 bg-gradient-to-r ${getAPScoreColor(range.apScore)}`}
+                className={`p-4 rounded-lg border-2 bg-gradient-to-r ${getAPScoreColor(range.apScore || 1)}`}
               >
                 <div className="flex items-center justify-between text-white">
                   <div>
-                    <p className="font-semibold">{range.label}</p>
+                    <p className="font-semibold">{range.label || 'Unknown'}</p>
                     <p className="text-sm text-white/90">
-                      {range.score.toFixed(1)}% Overall
+                      {typeof range.score === 'number' ? range.score.toFixed(1) : '0.0'}% Overall
                     </p>
                   </div>
                   <div className="text-right">
-                    <div className="text-4xl font-bold">{range.apScore}</div>
+                    <div className="text-4xl font-bold">{range.apScore || 1}</div>
                     <p className="text-xs text-white/90">AP Score</p>
                   </div>
                 </div>
@@ -381,13 +400,13 @@ ${userEmail}
               <div className="flex items-center justify-between mb-2">
                 <span className="text-gray-700">Score</span>
                 <span className="text-2xl font-bold text-gray-900">
-                  {results.mcqScore}/42
+                  {results.mcqScore || 0}/42
                 </span>
               </div>
               <div className="h-3 bg-gray-200 rounded-full overflow-hidden">
                 <div
                   className="h-full bg-gradient-to-r from-blue-500 to-indigo-600 transition-all duration-1000"
-                  style={{ width: `${(results.mcqScore / 42) * 100}%` }}
+                  style={{ width: `${((results.mcqScore || 0) / 42) * 100}%` }}
                 />
               </div>
             </div>
@@ -395,19 +414,19 @@ ${userEmail}
             <div className="grid grid-cols-3 gap-3 pt-4 border-t">
               <div className="text-center">
                 <p className="text-2xl font-bold text-green-600">
-                  {results.mcqScore}
+                  {results.mcqScore || 0}
                 </p>
                 <p className="text-xs text-gray-600">Correct</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-red-600">
-                  {42 - results.mcqScore}
+                  {42 - (results.mcqScore || 0)}
                 </p>
                 <p className="text-xs text-gray-600">Incorrect</p>
               </div>
               <div className="text-center">
                 <p className="text-2xl font-bold text-blue-600">
-                  {results.mcqPercentage?.toFixed(0)}%
+                  {(results.mcqPercentage || 0).toFixed(0)}%
                 </p>
                 <p className="text-xs text-gray-600">Accuracy</p>
               </div>
@@ -422,213 +441,217 @@ ${userEmail}
         </Card>
 
         {/* Unit Performance */}
-        <Card className="p-6 mb-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
-            <BarChart3 className="h-6 w-6 text-indigo-600" />
-            Performance by Unit
-          </h3>
+        {results.unitBreakdown && Object.keys(results.unitBreakdown).length > 0 && (
+          <Card className="p-6 mb-8">
+            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+              <BarChart3 className="h-6 w-6 text-indigo-600" />
+              Performance by Unit
+            </h3>
 
-          <div className="grid md:grid-cols-2 gap-4">
-            {results.unitBreakdown && Object.entries(results.unitBreakdown).map(([key, data]: [string, any]) => (
-              <div key={key} className="border rounded-lg p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <div>
-                    <p className="font-semibold text-gray-900">{data.unitName}</p>
-                    <p className="text-xs text-gray-600">
-                      {data.mcqCorrect}/{data.mcqTotal} questions correct
-                    </p>
-                  </div>
-                  <div className={`text-2xl font-bold ${
-                    data.mcqPercentage >= 75 ? 'text-green-600' :
-                    data.mcqPercentage >= 60 ? 'text-blue-600' :
-                    data.mcqPercentage >= 50 ? 'text-yellow-600' :
-                    'text-red-600'
-                  }`}>
-                    {data.mcqPercentage.toFixed(0)}%
-                  </div>
-                </div>
-                <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full transition-all duration-1000 ${
-                      data.mcqPercentage >= 75 ? 'bg-green-500' :
-                      data.mcqPercentage >= 60 ? 'bg-blue-500' :
-                      data.mcqPercentage >= 50 ? 'bg-yellow-500' :
-                      'bg-red-500'
-                    }`}
-                    style={{ width: `${data.mcqPercentage}%` }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* FRQ Solutions and Rubrics */}
-        <Card className="p-6 mb-8">
-          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <Code className="h-6 w-6 text-purple-600" />
-            Free Response Questions - Review Solutions
-          </h3>
-          
-          <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-            <p className="text-sm text-purple-900">
-              <strong>Section II: 45% of AP Score</strong> - Review your code against the sample solutions and rubrics below. 
-              Schedule a tutoring session to get personalized feedback on your FRQ responses.
-            </p>
-          </div>
-
-          <div className="space-y-6">
-            {results.frqDetails?.map((frq: any, index: number) => (
-              <div key={index} className="border-2 border-gray-200 rounded-lg overflow-hidden">
-                <button
-                  onClick={() => setExpandedFRQ(expandedFRQ === index ? null : index)}
-                  className="w-full p-6 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 transition-all flex items-center justify-between"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
-                      {index + 1}
-                    </div>
-                    <div className="text-left">
-                      <h4 className="font-bold text-gray-900">
-                        FRQ {index + 1}: {['Methods & Control', 'Classes', 'ArrayList', '2D Array'][index]}
-                      </h4>
-                      <p className="text-sm text-gray-600">
-                        {frq.question.maxPoints} points • Click to view solution and rubric
+            <div className="grid md:grid-cols-2 gap-4">
+              {Object.entries(results.unitBreakdown).map(([key, data]: [string, any]) => (
+                <div key={key} className="border rounded-lg p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <div>
+                      <p className="font-semibold text-gray-900">{data.unitName || 'Unknown Unit'}</p>
+                      <p className="text-xs text-gray-600">
+                        {data.mcqCorrect || 0}/{data.mcqTotal || 0} questions correct
                       </p>
                     </div>
+                    <div className={`text-2xl font-bold ${
+                      (data.mcqPercentage || 0) >= 75 ? 'text-green-600' :
+                      (data.mcqPercentage || 0) >= 60 ? 'text-blue-600' :
+                      (data.mcqPercentage || 0) >= 50 ? 'text-yellow-600' :
+                      'text-red-600'
+                    }`}>
+                      {(data.mcqPercentage || 0).toFixed(0)}%
+                    </div>
                   </div>
-                  <Eye className={`h-6 w-6 text-purple-600 transition-transform ${
-                    expandedFRQ === index ? 'rotate-180' : ''
-                  }`} />
-                </button>
+                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full transition-all duration-1000 ${
+                        (data.mcqPercentage || 0) >= 75 ? 'bg-green-500' :
+                        (data.mcqPercentage || 0) >= 60 ? 'bg-blue-500' :
+                        (data.mcqPercentage || 0) >= 50 ? 'bg-yellow-500' :
+                        'bg-red-500'
+                      }`}
+                      style={{ width: `${data.mcqPercentage || 0}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
-                {expandedFRQ === index && (
-                  <div className="p-6 bg-white border-t-2 border-purple-200">
-                    {/* Question Prompt */}
-                    <div className="mb-6">
-                      <h5 className="font-bold text-gray-900 mb-3">Question Prompt:</h5>
-                      <div className="prose max-w-none">
-                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                          {frq.question.promptText || frq.question.questionText}
-                        </ReactMarkdown>
+        {/* FRQ Solutions and Rubrics */}
+        {results.frqDetails && results.frqDetails.length > 0 && (
+          <Card className="p-6 mb-8">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Code className="h-6 w-6 text-purple-600" />
+              Free Response Questions - Review Solutions
+            </h3>
+            
+            <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+              <p className="text-sm text-purple-900">
+                <strong>Section II: 45% of AP Score</strong> - Review your code against the sample solutions and rubrics below. 
+                Schedule a tutoring session to get personalized feedback on your FRQ responses.
+              </p>
+            </div>
+
+            <div className="space-y-6">
+              {results.frqDetails.map((frq: any, index: number) => (
+                <div key={index} className="border-2 border-gray-200 rounded-lg overflow-hidden">
+                  <button
+                    onClick={() => setExpandedFRQ(expandedFRQ === index ? null : index)}
+                    className="w-full p-6 bg-gradient-to-r from-purple-50 to-indigo-50 hover:from-purple-100 hover:to-indigo-100 transition-all flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 bg-purple-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">
+                        {index + 1}
+                      </div>
+                      <div className="text-left">
+                        <h4 className="font-bold text-gray-900">
+                          FRQ {index + 1}: {['Methods & Control', 'Classes', 'ArrayList', '2D Array'][index]}
+                        </h4>
+                        <p className="text-sm text-gray-600">
+                          {frq.question?.maxPoints || 9} points • Click to view solution and rubric
+                        </p>
                       </div>
                     </div>
+                    <Eye className={`h-6 w-6 text-purple-600 transition-transform ${
+                      expandedFRQ === index ? 'rotate-180' : ''
+                    }`} />
+                  </button>
 
-                    {/* Your Solution */}
-                    <div className="mb-6">
-                      <h5 className="font-bold text-gray-900 mb-3">Your Solution:</h5>
-                      <SyntaxHighlighter
-                        language="java"
-                        style={vscDarkPlus}
-                        customStyle={{
-                          borderRadius: '0.5rem',
-                          padding: '1rem',
-                        }}
-                      >
-                        {frq.userCode || '// No solution submitted'}
-                      </SyntaxHighlighter>
-                      {frq.timeSpent && (
-                        <p className="text-sm text-gray-600 mt-2">
-                          Time spent: {Math.floor(frq.timeSpent / 60)} minutes {frq.timeSpent % 60} seconds
-                        </p>
-                      )}
-                    </div>
+                  {expandedFRQ === index && (
+                    <div className="p-6 bg-white border-t-2 border-purple-200">
+                      {/* Question Prompt */}
+                      <div className="mb-6">
+                        <h5 className="font-bold text-gray-900 mb-3">Question Prompt:</h5>
+                        <div className="prose max-w-none">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                            {frq.question?.promptText || frq.question?.questionText || 'No prompt available'}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
 
-                    {/* Sample Solution and Rubric for each part */}
-                    {frq.question.frqParts && frq.question.frqParts.length > 0 ? (
-                      <div className="space-y-6">
-                        {frq.question.frqParts.map((part: any, partIndex: number) => (
-                          <div key={partIndex} className="border-l-4 border-green-500 pl-6">
-                            <h5 className="font-bold text-gray-900 mb-3">
-                              Part ({part.partLetter}) - {part.maxPoints} points
-                            </h5>
-                            
-                            {/* Part Prompt */}
-                            <div className="mb-4">
-                              <p className="text-sm font-semibold text-gray-700 mb-2">Prompt:</p>
-                              <div className="prose prose-sm max-w-none">
-                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                                  {part.promptText}
-                                </ReactMarkdown>
-                              </div>
-                            </div>
+                      {/* Your Solution */}
+                      <div className="mb-6">
+                        <h5 className="font-bold text-gray-900 mb-3">Your Solution:</h5>
+                        <SyntaxHighlighter
+                          language="java"
+                          style={vscDarkPlus}
+                          customStyle={{
+                            borderRadius: '0.5rem',
+                            padding: '1rem',
+                          }}
+                        >
+                          {frq.userCode || '// No solution submitted'}
+                        </SyntaxHighlighter>
+                        {frq.timeSpent && (
+                          <p className="text-sm text-gray-600 mt-2">
+                            Time spent: {Math.floor(frq.timeSpent / 60)} minutes {frq.timeSpent % 60} seconds
+                          </p>
+                        )}
+                      </div>
 
-                            {/* Sample Solution */}
-                            <div className="mb-4">
-                              <p className="text-sm font-semibold text-gray-700 mb-2">Sample Solution:</p>
-                              <SyntaxHighlighter
-                                language="java"
-                                style={vscDarkPlus}
-                                customStyle={{
-                                  borderRadius: '0.5rem',
-                                  padding: '1rem',
-                                  fontSize: '0.875rem',
-                                }}
-                              >
-                                {part.sampleSolution || '// Sample solution not available'}
-                              </SyntaxHighlighter>
-                            </div>
-
-                            {/* Rubric */}
-                            {part.rubricPoints && part.rubricPoints.length > 0 && (
-                              <div className="bg-green-50 rounded-lg p-4">
-                                <p className="text-sm font-semibold text-green-900 mb-3">Scoring Rubric:</p>
-                                <div className="space-y-2">
-                                  {part.rubricPoints.map((rubric: any, rIndex: number) => (
-                                    <div key={rIndex} className="flex items-start gap-2">
-                                      <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
-                                      <div className="flex-1">
-                                        <p className="text-sm font-medium text-gray-900">
-                                          {rubric.criterion} ({rubric.points} {rubric.points === 1 ? 'point' : 'points'})
-                                        </p>
-                                        {rubric.description && (
-                                          <p className="text-xs text-gray-600 mt-1">{rubric.description}</p>
-                                        )}
-                                      </div>
-                                    </div>
-                                  ))}
+                      {/* Sample Solution and Rubric for each part */}
+                      {frq.question?.frqParts && frq.question.frqParts.length > 0 ? (
+                        <div className="space-y-6">
+                          {frq.question.frqParts.map((part: any, partIndex: number) => (
+                            <div key={partIndex} className="border-l-4 border-green-500 pl-6">
+                              <h5 className="font-bold text-gray-900 mb-3">
+                                Part ({part.partLetter}) - {part.maxPoints || 0} points
+                              </h5>
+                              
+                              {/* Part Prompt */}
+                              <div className="mb-4">
+                                <p className="text-sm font-semibold text-gray-700 mb-2">Prompt:</p>
+                                <div className="prose prose-sm max-w-none">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                    {part.promptText || 'No prompt available'}
+                                  </ReactMarkdown>
                                 </div>
                               </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    ) : (
-                      /* Single-part FRQ */
-                      <div className="space-y-4">
-                        <div>
-                          <h5 className="font-bold text-gray-900 mb-3">Sample Solution:</h5>
-                          <div className="prose max-w-none">
-                            <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                              {frq.question.explanation || 'Sample solution not available'}
-                            </ReactMarkdown>
-                          </div>
-                        </div>
-                      </div>
-                    )}
 
-                    {/* Schedule Review Button for Individual FRQ */}
-                    <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
-                      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-                        <div>
-                          <p className="font-semibold text-indigo-900">Want personalized feedback on this FRQ?</p>
-                          <p className="text-sm text-indigo-700">Schedule a session to review FRQ {index + 1} in detail</p>
+                              {/* Sample Solution */}
+                              <div className="mb-4">
+                                <p className="text-sm font-semibold text-gray-700 mb-2">Sample Solution:</p>
+                                <SyntaxHighlighter
+                                  language="java"
+                                  style={vscDarkPlus}
+                                  customStyle={{
+                                    borderRadius: '0.5rem',
+                                    padding: '1rem',
+                                    fontSize: '0.875rem',
+                                  }}
+                                >
+                                  {part.sampleSolution || '// Sample solution not available'}
+                                </SyntaxHighlighter>
+                              </div>
+
+                              {/* Rubric */}
+                              {part.rubricPoints && part.rubricPoints.length > 0 && (
+                                <div className="bg-green-50 rounded-lg p-4">
+                                  <p className="text-sm font-semibold text-green-900 mb-3">Scoring Rubric:</p>
+                                  <div className="space-y-2">
+                                    {part.rubricPoints.map((rubric: any, rIndex: number) => (
+                                      <div key={rIndex} className="flex items-start gap-2">
+                                        <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
+                                        <div className="flex-1">
+                                          <p className="text-sm font-medium text-gray-900">
+                                            {rubric.criterion || 'Criterion'} ({rubric.points || 0} {(rubric.points || 0) === 1 ? 'point' : 'points'})
+                                          </p>
+                                          {rubric.description && (
+                                            <p className="text-xs text-gray-600 mt-1">{rubric.description}</p>
+                                          )}
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          ))}
                         </div>
-                        <Button 
-                          onClick={() => handleScheduleReview(index + 1)}
-                          className="bg-indigo-600 hover:bg-indigo-700 whitespace-nowrap"
-                        >
-                          <Mail className="h-4 w-4 mr-2" />
-                          Request Review
-                        </Button>
+                      ) : (
+                        /* Single-part FRQ */
+                        <div className="space-y-4">
+                          <div>
+                            <h5 className="font-bold text-gray-900 mb-3">Sample Solution:</h5>
+                            <div className="prose max-w-none">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                {frq.question?.explanation || 'Sample solution not available'}
+                              </ReactMarkdown>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Schedule Review Button for Individual FRQ */}
+                      <div className="mt-6 p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                          <div>
+                            <p className="font-semibold text-indigo-900">Want personalized feedback on this FRQ?</p>
+                            <p className="text-sm text-indigo-700">Schedule a session to review FRQ {index + 1} in detail</p>
+                          </div>
+                          <Button 
+                            onClick={() => handleScheduleReview(index + 1)}
+                            className="bg-indigo-600 hover:bg-indigo-700 whitespace-nowrap"
+                          >
+                            <Mail className="h-4 w-4 mr-2" />
+                            Request Review
+                          </Button>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        </Card>
+                  )}
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* Strengths & Weaknesses */}
         <div className="grid md:grid-cols-2 gap-6 mb-8">
@@ -638,12 +661,16 @@ ${userEmail}
               Your Strengths
             </h3>
             <ul className="space-y-2">
-              {results.strengths?.map((strength: string, index: number) => (
-                <li key={index} className="flex items-start gap-2 text-sm text-green-800">
-                  <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <span>{strength}</span>
-                </li>
-              ))}
+              {results.strengths && results.strengths.length > 0 ? (
+                results.strengths.map((strength: string, index: number) => (
+                  <li key={index} className="flex items-start gap-2 text-sm text-green-800">
+                    <CheckCircle className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>{strength}</span>
+                  </li>
+                ))
+              ) : (
+                <li className="text-sm text-green-700">Keep practicing to identify your strengths!</li>
+              )}
             </ul>
           </Card>
 
@@ -653,58 +680,66 @@ ${userEmail}
               Focus Areas
             </h3>
             <ul className="space-y-2">
-              {results.weaknesses?.map((weakness: string, index: number) => (
-                <li key={index} className="flex items-start gap-2 text-sm text-orange-800">
-                  <Target className="h-4 w-4 flex-shrink-0 mt-0.5" />
-                  <span>{weakness}</span>
-                </li>
-              ))}
+              {results.weaknesses && results.weaknesses.length > 0 ? (
+                results.weaknesses.map((weakness: string, index: number) => (
+                  <li key={index} className="flex items-start gap-2 text-sm text-orange-800">
+                    <Target className="h-4 w-4 flex-shrink-0 mt-0.5" />
+                    <span>{weakness}</span>
+                  </li>
+                ))
+              ) : (
+                <li className="text-sm text-orange-700">Great job! Continue practicing to maintain your skills.</li>
+              )}
             </ul>
           </Card>
         </div>
 
         {/* Recommendations */}
-        <Card className="p-6 mb-8 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200">
-          <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
-            <BookOpen className="h-6 w-6 text-indigo-600" />
-            Personalized Recommendations
-          </h3>
+        {results.recommendations && (
+          <Card className="p-6 mb-8 bg-gradient-to-br from-indigo-50 to-purple-50 border-indigo-200">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <BookOpen className="h-6 w-6 text-indigo-600" />
+              Personalized Recommendations
+            </h3>
 
-          <div className="space-y-4">
-            <div>
-              <p className="font-semibold text-gray-900 mb-2">Overall Assessment:</p>
-              <p className="text-gray-700">{results.recommendations?.overall}</p>
+            <div className="space-y-4">
+              {results.recommendations.overall && (
+                <div>
+                  <p className="font-semibold text-gray-900 mb-2">Overall Assessment:</p>
+                  <p className="text-gray-700">{results.recommendations.overall}</p>
+                </div>
+              )}
+
+              {results.recommendations.studyFocus && results.recommendations.studyFocus.length > 0 && (
+                <div>
+                  <p className="font-semibold text-gray-900 mb-2">Study Focus:</p>
+                  <ul className="space-y-1">
+                    {results.recommendations.studyFocus.map((focus: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
+                        <ArrowRight className="h-4 w-4 flex-shrink-0 mt-0.5 text-indigo-600" />
+                        <span>{focus}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+
+              {results.recommendations.nextSteps && results.recommendations.nextSteps.length > 0 && (
+                <div>
+                  <p className="font-semibold text-gray-900 mb-2">Next Steps:</p>
+                  <ul className="space-y-1">
+                    {results.recommendations.nextSteps.map((step: string, index: number) => (
+                      <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
+                        <ArrowRight className="h-4 w-4 flex-shrink-0 mt-0.5 text-indigo-600" />
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
-
-            {results.recommendations?.studyFocus && results.recommendations.studyFocus.length > 0 && (
-              <div>
-                <p className="font-semibold text-gray-900 mb-2">Study Focus:</p>
-                <ul className="space-y-1">
-                  {results.recommendations.studyFocus.map((focus: string, index: number) => (
-                    <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-                      <ArrowRight className="h-4 w-4 flex-shrink-0 mt-0.5 text-indigo-600" />
-                      <span>{focus}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            {results.recommendations?.nextSteps && results.recommendations.nextSteps.length > 0 && (
-              <div>
-                <p className="font-semibold text-gray-900 mb-2">Next Steps:</p>
-                <ul className="space-y-1">
-                  {results.recommendations.nextSteps.map((step: string, index: number) => (
-                    <li key={index} className="flex items-start gap-2 text-sm text-gray-700">
-                      <ArrowRight className="h-4 w-4 flex-shrink-0 mt-0.5 text-indigo-600" />
-                      <span>{step}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        </Card>
+          </Card>
+        )}
 
         {/* Actions */}
         <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
