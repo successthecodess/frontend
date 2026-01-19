@@ -14,7 +14,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { X, Plus, Eye } from 'lucide-react';
+import { X, Plus, Eye, Info } from 'lucide-react';
 import { api } from '@/lib/api';
 import { MarkdownContent } from '@/components/practice/MarkdownContent';
 
@@ -32,10 +32,11 @@ export function QuestionForm({
   const [units, setUnits] = useState<any[]>([]);
   const [topics, setTopics] = useState<any[]>([]);
   const [showPreview, setShowPreview] = useState(false);
+  const [showFormatHelp, setShowFormatHelp] = useState(false);
 
   const [formData, setFormData] = useState({
     unitId: initialData?.unitId || '',
-    topicId: initialData?.topicId || 'none', // Changed to 'none'
+    topicId: initialData?.topicId || 'none',
     difficulty: initialData?.difficulty || 'EASY',
     type: initialData?.type || 'MULTIPLE_CHOICE',
     questionText: initialData?.questionText || '',
@@ -70,7 +71,7 @@ export function QuestionForm({
       setTopics(response.data.topics || []);
     } catch (error) {
       console.error('Failed to load topics:', error);
-      setTopics([]); // Set empty array on error
+      setTopics([]);
     }
   };
 
@@ -91,6 +92,20 @@ export function QuestionForm({
     }
     const newOptions = formData.options.filter((_: string, i: number) => i !== index);
     setFormData({ ...formData, options: newOptions });
+  };
+
+  // Process text to handle line breaks for markdown
+  const processForMarkdown = (text: string): string => {
+    // Convert single newlines to markdown line breaks (two spaces + newline)
+    // But preserve double newlines as paragraph breaks
+    return text
+      .split('\n\n') // Split by paragraph breaks
+      .map(paragraph => 
+        paragraph
+          .split('\n') // Split by single line breaks within paragraph
+          .join('  \n') // Add two spaces before newline for markdown line break
+      )
+      .join('\n\n'); // Rejoin paragraphs
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -122,7 +137,6 @@ export function QuestionForm({
       return;
     }
 
-    // Convert 'none' to empty string before submitting
     const submitData = {
       ...formData,
       topicId: formData.topicId === 'none' ? '' : formData.topicId,
@@ -204,7 +218,6 @@ export function QuestionForm({
                     <SelectItem value="EASY">Easy</SelectItem>
                     <SelectItem value="MEDIUM">Medium</SelectItem>
                     <SelectItem value="HARD">Hard</SelectItem>
-                  
                   </SelectContent>
                 </Select>
               </div>
@@ -242,19 +255,55 @@ export function QuestionForm({
           <div className="space-y-4">
             {/* Question Text */}
             <div>
-              <Label>Question Text *</Label>
+              <div className="flex items-center justify-between mb-2">
+                <Label>Question Text *</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setShowFormatHelp(!showFormatHelp)}
+                  className="gap-1 text-xs text-gray-500 hover:text-gray-700"
+                >
+                  <Info className="h-3 w-3" />
+                  Formatting Help
+                </Button>
+              </div>
+              
+              {showFormatHelp && (
+                <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-lg text-sm">
+                  <p className="font-semibold text-blue-900 mb-2">Formatting Tips:</p>
+                  <ul className="space-y-1 text-blue-800">
+                    <li>• <strong>Line break:</strong> Press Enter once for a new line</li>
+                    <li>• <strong>Paragraph:</strong> Press Enter twice for a new paragraph</li>
+                    <li>• <strong>Code block:</strong> ```java{'\n'}your code here{'\n'}```</li>
+                    <li>• <strong>Inline code:</strong> `code`</li>
+                    <li>• <strong>Bold:</strong> **text**</li>
+                    <li>• <strong>Italic:</strong> *text*</li>
+                    <li>• <strong>List:</strong> Start line with - or 1.</li>
+                  </ul>
+                </div>
+              )}
+              
               <Textarea
                 value={formData.questionText}
                 onChange={(e) =>
                   setFormData({ ...formData, questionText: e.target.value })
                 }
-                placeholder="Enter the question. Use ```java for code blocks..."
-                rows={8}
-                className="font-mono text-sm"
+                placeholder={`Enter the question text here...
+
+For code blocks, use:
+\`\`\`java
+public class Example {
+    public static void main(String[] args) {
+        System.out.println("Hello");
+    }
+}
+\`\`\`
+
+Press Enter for line breaks.`}
+                rows={10}
+                className="font-mono text-sm whitespace-pre-wrap"
               />
-              <p className="mt-2 text-sm text-gray-600">
-                Tip: Use markdown for formatting. Code blocks: ```java your code here ```
-              </p>
             </div>
 
             {/* Options */}
@@ -277,10 +326,12 @@ export function QuestionForm({
                 {formData.options.map((option: string, index: number) => (
                   <div key={index} className="flex gap-2">
                     <div className="flex-1">
-                      <Input
+                      <Textarea
                         value={option}
                         onChange={(e) => updateOption(index, e.target.value)}
-                        placeholder={`Option ${index + 1}`}
+                        placeholder={`Option ${index + 1} (supports multi-line)`}
+                        rows={2}
+                        className="font-mono text-sm resize-y min-h-[60px]"
                       />
                     </div>
                     {formData.options.length > 2 && (
@@ -289,7 +340,7 @@ export function QuestionForm({
                         variant="ghost"
                         size="sm"
                         onClick={() => removeOption(index)}
-                        className="text-red-600 hover:text-red-700"
+                        className="text-red-600 hover:text-red-700 self-start mt-1"
                       >
                         <X className="h-4 w-4" />
                       </Button>
@@ -308,19 +359,36 @@ export function QuestionForm({
                   setFormData({ ...formData, correctAnswer: value })
                 }
               >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select the correct answer" />
+                <SelectTrigger className="h-auto min-h-[40px]">
+                  <SelectValue placeholder="Select the correct answer">
+                    {formData.correctAnswer && (
+                      <span className="whitespace-pre-wrap text-left block py-1">
+                        {formData.correctAnswer.length > 50 
+                          ? formData.correctAnswer.substring(0, 50) + '...' 
+                          : formData.correctAnswer}
+                      </span>
+                    )}
+                  </SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {formData.options
                     .filter((opt: string) => opt.trim())
                     .map((option: string, index: number) => (
-                      <SelectItem key={index} value={option}>
-                        {option}
+                      <SelectItem 
+                        key={index} 
+                        value={option}
+                        className="whitespace-pre-wrap"
+                      >
+                        <span className="block max-w-[400px]">
+                          {option.length > 80 ? option.substring(0, 80) + '...' : option}
+                        </span>
                       </SelectItem>
                     ))}
                 </SelectContent>
               </Select>
+              <p className="mt-1 text-xs text-gray-500">
+                Selected: {formData.correctAnswer ? 'Option set' : 'None'}
+              </p>
             </div>
 
             {/* Explanation */}
@@ -331,13 +399,15 @@ export function QuestionForm({
                 onChange={(e) =>
                   setFormData({ ...formData, explanation: e.target.value })
                 }
-                placeholder="Explain why this is the correct answer..."
-                rows={6}
-                className="font-mono text-sm"
+                placeholder={`Explain why this is the correct answer...
+
+You can use:
+- Multiple paragraphs (press Enter twice)
+- Line breaks (press Enter once)
+- Code examples with \`\`\`java blocks`}
+                rows={8}
+                className="font-mono text-sm whitespace-pre-wrap"
               />
-              <p className="mt-2 text-sm text-gray-600">
-                Provide a detailed explanation to help students learn
-              </p>
             </div>
           </div>
         </Card>
@@ -345,7 +415,12 @@ export function QuestionForm({
         {/* Preview */}
         {showPreview && (
           <Card className="p-6">
-            <h2 className="mb-4 text-xl font-semibold text-gray-900">Preview</h2>
+            <h2 className="mb-4 text-xl font-semibold text-gray-900">
+              Preview
+              <span className="ml-2 text-sm font-normal text-gray-500">
+                (How students will see it)
+              </span>
+            </h2>
             <div className="space-y-4">
               <div className="flex gap-2">
                 <Badge variant="outline" className="capitalize">
@@ -354,28 +429,48 @@ export function QuestionForm({
                 <Badge variant="secondary">{formData.type}</Badge>
               </div>
 
-              <div className="rounded-lg bg-gray-50 p-4">
-                <MarkdownContent content={formData.questionText} />
+              {/* Question Preview */}
+              <div className="rounded-lg bg-gray-50 p-4 border">
+                <p className="text-xs text-gray-500 mb-2 uppercase tracking-wide">Question:</p>
+                <MarkdownContent content={processForMarkdown(formData.questionText)} />
               </div>
 
+              {/* Options Preview */}
               <div className="space-y-2">
+                <p className="text-xs text-gray-500 uppercase tracking-wide">Options:</p>
                 {formData.options.map((option: string, index: number) => (
                   <div
                     key={index}
                     className={`rounded-lg border-2 p-4 ${
                       option === formData.correctAnswer
                         ? 'border-green-500 bg-green-50'
-                        : 'border-gray-200'
+                        : 'border-gray-200 bg-white'
                     }`}
                   >
-                    <MarkdownContent content={option} />
+                    <div className="flex items-start gap-3">
+                      <span className={`
+                        flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-sm font-medium
+                        ${option === formData.correctAnswer 
+                          ? 'bg-green-500 text-white' 
+                          : 'bg-gray-200 text-gray-600'}
+                      `}>
+                        {String.fromCharCode(65 + index)}
+                      </span>
+                      <div className="flex-1">
+                        <MarkdownContent content={processForMarkdown(option)} />
+                      </div>
+                      {option === formData.correctAnswer && (
+                        <Badge className="bg-green-500 flex-shrink-0">Correct</Badge>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>
 
-              <div className="rounded-lg bg-blue-50 p-4">
-                <p className="mb-2 font-semibold text-blue-900">Explanation:</p>
-                <MarkdownContent content={formData.explanation} />
+              {/* Explanation Preview */}
+              <div className="rounded-lg bg-blue-50 p-4 border border-blue-200">
+                <p className="text-xs text-blue-600 mb-2 uppercase tracking-wide">Explanation:</p>
+                <MarkdownContent content={processForMarkdown(formData.explanation)} />
               </div>
             </div>
           </Card>
@@ -383,7 +478,7 @@ export function QuestionForm({
 
         {/* Actions */}
         <Card className="p-6">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center gap-4">
               <label className="flex items-center gap-2">
                 <input

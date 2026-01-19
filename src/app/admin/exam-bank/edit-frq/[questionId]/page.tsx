@@ -43,6 +43,85 @@ interface TableData {
   data: string[][];
 }
 
+// Helper function to convert single newlines to line breaks
+// This adds two spaces before each newline, which Markdown renders as <br/>
+const processLineBreaks = (text: string): string => {
+  if (!text) return '';
+  
+  // Split by code blocks to avoid processing inside them
+  const codeBlockRegex = /(```[\s\S]*?```|`[^`]+`)/g;
+  const parts = text.split(codeBlockRegex);
+  
+  return parts.map((part) => {
+    // If it's a code block, don't process
+    if (part.startsWith('```') || part.startsWith('`')) {
+      return part;
+    }
+    // Replace single newlines (not double) with two spaces + newline
+    return part.replace(/(?<!\n)\n(?!\n)/g, '  \n');
+  }).join('');
+};
+
+// Shared markdown components
+const markdownComponents = {
+  code: ({node, inline, className, children, ...props}: any) => {
+    const match = /language-(\w+)/.exec(className || '');
+    return !inline && match ? (
+      <SyntaxHighlighter
+        style={vscDarkPlus}
+        language={match[1]}
+        PreTag="div"
+        customStyle={{
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          fontSize: '0.875rem',
+          marginTop: '0.75rem',
+          marginBottom: '0.75rem',
+        }}
+        {...props}
+      >
+        {String(children).replace(/\n$/, '')}
+      </SyntaxHighlighter>
+    ) : (
+      <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props}>
+        {children}
+      </code>
+    );
+  },
+  p: ({children}: any) => (
+    <p className="mb-4 text-gray-800 leading-relaxed last:mb-0">{children}</p>
+  ),
+  table: ({children}: any) => (
+    <div className="overflow-x-auto my-6">
+      <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({children}: any) => (
+    <thead className="bg-gray-100">{children}</thead>
+  ),
+  th: ({children}: any) => (
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border border-gray-300">
+      {children}
+    </th>
+  ),
+  td: ({children}: any) => (
+    <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
+      {children}
+    </td>
+  ),
+  ul: ({children}: any) => (
+    <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>
+  ),
+  ol: ({children}: any) => (
+    <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>
+  ),
+  li: ({children}: any) => (
+    <li className="text-gray-900">{children}</li>
+  ),
+};
+
 export default function EditFRQPage() {
   const params = useParams();
   const router = useRouter();
@@ -109,7 +188,6 @@ export default function EditFRQPage() {
         return;
       }
 
-      // Populate form data
       setFormData({
         unitId: question.unitId || '',
         frqType: question.frqType || 'METHODS_CONTROL',
@@ -121,7 +199,6 @@ export default function EditFRQPage() {
         approved: question.approved || false,
       });
 
-      // Populate parts
       if (question.frqParts && question.frqParts.length > 0) {
         setParts(question.frqParts.map((part: any) => ({
           partLetter: part.partLetter,
@@ -360,10 +437,11 @@ export default function EditFRQPage() {
         </div>
       </div>
 
-      {/* Preview Modal - Same as create page */}
+      {/* Student Preview Modal */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 overflow-y-auto">
           <Card className="w-full max-w-6xl max-h-[95vh] overflow-y-auto bg-white shadow-2xl">
+            {/* Preview Header */}
             <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 p-6 z-10 shadow-lg">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
@@ -384,6 +462,7 @@ export default function EditFRQPage() {
                 </Button>
               </div>
 
+              {/* Part Tabs */}
               {parts.length > 0 && (
                 <div className="flex gap-2 mt-4 flex-wrap">
                   <button
@@ -414,6 +493,7 @@ export default function EditFRQPage() {
               )}
             </div>
 
+            {/* Preview Content */}
             <div className="p-8 space-y-6 bg-gray-50">
               {previewPartIndex === -1 ? (
                 <>
@@ -427,50 +507,9 @@ export default function EditFRQPage() {
                         <div className="prose prose-lg max-w-none">
                           <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
-                            components={{
-                              code: ({node, inline, className, children, ...props}: any) => {
-                                const match = /language-(\w+)/.exec(className || '');
-                                return !inline && match ? (
-                                  <SyntaxHighlighter
-                                    style={vscDarkPlus}
-                                    language={match[1]}
-                                    PreTag="div"
-                                    {...props}
-                                  >
-                                    {String(children).replace(/\n$/, '')}
-                                  </SyntaxHighlighter>
-                                ) : (
-                                  <code className={className} {...props}>
-                                    {children}
-                                  </code>
-                                );
-                              },
-                              table: ({children}: any) => (
-                                <div className="overflow-x-auto my-6">
-                                  <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
-                                    {children}
-                                  </table>
-                                </div>
-                              ),
-                              thead: ({children}: any) => (
-                                <thead className="bg-gray-100">{children}</thead>
-                              ),
-                              th: ({children}: any) => (
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border border-gray-300">
-                                  {children}
-                                </th>
-                              ),
-                              td: ({children}: any) => (
-                                <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
-                                  {children}
-                                </td>
-                              ),
-                              p: ({children}: any) => (
-                                <p className="mb-4 text-gray-800 leading-relaxed">{children}</p>
-                              ),
-                            }}
+                            components={markdownComponents}
                           >
-                            {formData.promptText || '*No context provided yet.*'}
+                            {processLineBreaks(formData.promptText) || '*No context provided yet. Add your question scenario above.*'}
                           </ReactMarkdown>
                         </div>
                       </div>
@@ -533,50 +572,9 @@ export default function EditFRQPage() {
                     <div className="prose prose-lg max-w-none">
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
-                        components={{
-                          code: ({node, inline, className, children, ...props}: any) => {
-                            const match = /language-(\w+)/.exec(className || '');
-                            return !inline && match ? (
-                              <SyntaxHighlighter
-                                style={vscDarkPlus}
-                                language={match[1]}
-                                PreTag="div"
-                                {...props}
-                              >
-                                {String(children).replace(/\n$/, '')}
-                              </SyntaxHighlighter>
-                            ) : (
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            );
-                          },
-                          table: ({children}: any) => (
-                            <div className="overflow-x-auto my-6">
-                              <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
-                                {children}
-                              </table>
-                            </div>
-                          ),
-                          thead: ({children}: any) => (
-                            <thead className="bg-gray-100">{children}</thead>
-                          ),
-                          th: ({children}: any) => (
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border border-gray-300">
-                              {children}
-                            </th>
-                          ),
-                          td: ({children}: any) => (
-                            <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
-                              {children}
-                            </td>
-                          ),
-                          p: ({children}: any) => (
-                            <p className="mb-4 text-gray-800 leading-relaxed">{children}</p>
-                          ),
-                        }}
+                        components={markdownComponents}
                       >
-                        {parts[previewPartIndex].promptText || '*No instructions provided for this part yet.*'}
+                        {processLineBreaks(parts[previewPartIndex].promptText) || '*No instructions provided for this part yet.*'}
                       </ReactMarkdown>
                     </div>
                   </Card>
@@ -650,6 +648,7 @@ export default function EditFRQPage() {
               )}
             </div>
 
+            {/* Preview Footer */}
             <div className="sticky bottom-0 bg-white border-t-2 border-gray-200 p-6 shadow-2xl">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-6">
@@ -682,7 +681,7 @@ export default function EditFRQPage() {
         </div>
       )}
 
-      {/* Table Builder - Same as create page */}
+      {/* Table Builder */}
       {showTableBuilder !== null && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-6xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
@@ -812,11 +811,10 @@ export default function EditFRQPage() {
         </div>
       )}
 
-      {/* Form - Same structure as create page but with "Update" instead of "Create" */}
+      {/* Form */}
       <form onSubmit={handleSubmit}>
         <div className="space-y-6">
-          {/* All form fields remain the same as create page */}
-          {/* Basic Info Card */}
+          {/* Basic Info */}
           <Card className="p-8 bg-gradient-to-br from-white to-blue-50 border-2 border-blue-200 shadow-xl">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-500 rounded-xl flex items-center justify-center">
@@ -886,7 +884,7 @@ export default function EditFRQPage() {
             </div>
           </Card>
 
-          {/* Question Context Card */}
+          {/* Question Context */}
           <Card className="p-8 bg-gradient-to-br from-white to-purple-50 border-2 border-purple-200 shadow-xl">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center">
@@ -918,11 +916,11 @@ export default function EditFRQPage() {
                   onChange={(e) => setFormData({ ...formData, promptText: e.target.value })}
                   rows={10}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono text-sm transition-all"
-                  placeholder="This question simulates birds eating at a bird feeder..."
+                  placeholder="This question simulates birds eating at a bird feeder. The following Feeder class contains information..."
                 />
                 <p className="text-xs text-gray-600 mt-2 flex items-center gap-2">
                   <Sparkles className="h-3 w-3" />
-                  Shared context for all parts (scenario, class definition, etc.). Use Markdown for tables.
+                  Shared context for all parts (scenario, class definition, etc.). Use Markdown for tables. Press Enter for new lines.
                 </p>
               </div>
 
@@ -935,7 +933,7 @@ export default function EditFRQPage() {
                   onChange={(e) => setFormData({ ...formData, starterCode: e.target.value })}
                   rows={14}
                   className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-purple-500 font-mono text-sm bg-gray-50 transition-all"
-                  placeholder="public class Feeder..."
+                  placeholder="public class Feeder&#10;{&#10;    private int currentFood;&#10;    public void simulateOneDay(int numBirds)&#10;    public int simulateManyDays(int numBirds, int numDays)&#10;}"
                 />
                 <p className="text-xs text-gray-600 mt-2 flex items-center gap-2">
                   <Code className="h-3 w-3" />
@@ -945,7 +943,7 @@ export default function EditFRQPage() {
             </div>
           </Card>
 
-          {/* Question Parts - Continue with same structure from create page */}
+          {/* Question Parts */}
           {parts.map((part, partIndex) => (
             <Card key={partIndex} className="p-8 bg-gradient-to-br from-white to-green-50 border-l-8 border-l-green-500 shadow-xl">
               <div className="flex items-center justify-between mb-6">
@@ -994,10 +992,10 @@ export default function EditFRQPage() {
                     onChange={(e) => updatePart(partIndex, 'promptText', e.target.value)}
                     rows={10}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-sm transition-all"
-                    placeholder="(a) Write the simulateOneDay method..."
+                    placeholder="(a) Write the simulateOneDay method, which simulates numBirds birds or possibly a bear..."
                   />
                   <p className="text-xs text-gray-600 mt-2">
-                    Use Markdown for tables and formatting
+                    Use Markdown for tables and formatting. Press Enter for new lines.
                   </p>
                 </div>
 
@@ -1010,7 +1008,7 @@ export default function EditFRQPage() {
                     onChange={(e) => updatePart(partIndex, 'starterCode', e.target.value)}
                     rows={8}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-sm bg-gray-50 transition-all"
-                    placeholder="public void simulateOneDay(int numBirds)..."
+                    placeholder="public void simulateOneDay(int numBirds)&#10;{"
                   />
                 </div>
 
@@ -1117,7 +1115,7 @@ export default function EditFRQPage() {
                     onChange={(e) => updatePart(partIndex, 'sampleSolution', e.target.value)}
                     rows={12}
                     className="w-full px-4 py-3 border-2 border-gray-300 rounded-xl focus:ring-2 focus:ring-green-500 focus:border-green-500 font-mono text-sm bg-gray-900 text-green-400 transition-all"
-                    placeholder="public void simulateOneDay(int numBirds)..."
+                    placeholder="public void simulateOneDay(int numBirds)&#10;{&#10;    // Sample solution&#10;}"
                   />
                 </div>
               </div>
@@ -1137,7 +1135,7 @@ export default function EditFRQPage() {
             </Button>
           )}
 
-          {/* Actions Card */}
+          {/* Actions */}
           <Card className="p-8 bg-gradient-to-r from-indigo-50 to-purple-50 border-2 border-indigo-200 shadow-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">

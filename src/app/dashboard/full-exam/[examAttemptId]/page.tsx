@@ -18,6 +18,7 @@ import { examApi } from '@/lib/examApi';
 import type { FullExamAttempt, ExamAttemptMCQ } from '@/types/exam';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -181,6 +182,7 @@ export default function FullExamPage() {
     p: ({children}: any) => (
       <p className="mb-4 text-gray-900 leading-relaxed last:mb-0">{children}</p>
     ),
+    br: () => <br className="block" />,
     table: ({children}: any) => (
       <div className="overflow-x-auto my-4">
         <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
@@ -200,6 +202,15 @@ export default function FullExamPage() {
       <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
         {children}
       </td>
+    ),
+    ul: ({children}: any) => (
+      <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>
+    ),
+    ol: ({children}: any) => (
+      <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>
+    ),
+    li: ({children}: any) => (
+      <li className="text-gray-900">{children}</li>
     ),
   };
 
@@ -361,7 +372,7 @@ export default function FullExamPage() {
               <div className="mb-8">
                 <div className="prose prose-lg max-w-none">
                   <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
                     components={markdownComponents}
                   >
                     {currentQuestion.question.questionText}
@@ -395,7 +406,7 @@ export default function FullExamPage() {
                         </div>
                         <div className="flex-1 pt-1 prose max-w-none">
                           <ReactMarkdown 
-                            remarkPlugins={[remarkGfm]}
+                            remarkPlugins={[remarkGfm, remarkBreaks]}
                             components={markdownComponents}
                           >
                             {option}

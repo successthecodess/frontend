@@ -22,6 +22,7 @@ import { examApi } from '@/lib/examApi';
 import type { FullExamAttempt, PartResponse } from '@/types/exam';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -327,6 +328,7 @@ export default function FRQExamPage() {
     p: ({children}: any) => (
       <p className="mb-3 text-gray-900 leading-relaxed last:mb-0">{children}</p>
     ),
+    br: () => <br className="block" />,
     table: ({children}: any) => (
       <div className="overflow-x-auto my-4">
         <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
@@ -551,7 +553,7 @@ export default function FRQExamPage() {
                     <h3 className="font-bold text-gray-900 text-lg mb-3">Question Context</h3>
                     <div className="prose prose-lg max-w-none bg-white/60 rounded-lg p-4 backdrop-blur-sm">
                       <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
+                        remarkPlugins={[remarkGfm, remarkBreaks]}
                         components={markdownComponents}
                       >
                         {currentFRQ.question.promptText}
@@ -625,7 +627,7 @@ export default function FRQExamPage() {
               <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-xl p-6 border-2 border-gray-200 shadow-inner">
                 <div className="prose prose-lg max-w-none">
                   <ReactMarkdown 
-                    remarkPlugins={[remarkGfm]}
+                    remarkPlugins={[remarkGfm, remarkBreaks]}
                     components={markdownComponents}
                   >
                     {currentPart ? currentPart.promptText : currentFRQ.question.promptText}

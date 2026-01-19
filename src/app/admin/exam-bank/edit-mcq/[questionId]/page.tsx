@@ -11,6 +11,7 @@ import { examApi } from '@/lib/examApi';
 import type { ExamUnit } from '@/types/exam';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -26,6 +27,47 @@ interface MCQFormData {
   difficulty: string;
   approved: boolean;
 }
+
+// Shared markdown components - same as Create MCQ
+const markdownComponents = {
+  code: ({node, inline, className, children, ...props}: any) => {
+    const match = /language-(\w+)/.exec(className || '');
+    return !inline && match ? (
+      <SyntaxHighlighter
+        style={vscDarkPlus}
+        language={match[1]}
+        PreTag="div"
+        customStyle={{
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          fontSize: '0.875rem',
+          marginTop: '0.5rem',
+          marginBottom: '0.5rem',
+        }}
+        {...props}
+      >
+        {String(children).replace(/\n$/, '')}
+      </SyntaxHighlighter>
+    ) : (
+      <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props}>
+        {children}
+      </code>
+    );
+  },
+  p: ({children}: any) => (
+    <p className="mb-3 text-gray-900 leading-relaxed last:mb-0">{children}</p>
+  ),
+  br: () => <br className="block" />,
+  ul: ({children}: any) => (
+    <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>
+  ),
+  ol: ({children}: any) => (
+    <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>
+  ),
+  li: ({children}: any) => (
+    <li className="text-gray-900">{children}</li>
+  ),
+};
 
 export default function EditMCQPage() {
   const params = useParams();
@@ -83,7 +125,6 @@ export default function EditMCQPage() {
         return;
       }
 
-      // Populate form data
       setFormData({
         unitId: question.unitId || '',
         questionText: question.questionText || '',
@@ -168,37 +209,6 @@ export default function EditMCQPage() {
     return units.find(u => u.id === formData.unitId);
   };
 
-  // Markdown components for rendering
-  const markdownComponents = {
-    code: ({node, inline, className, children, ...props}: any) => {
-      const match = /language-(\w+)/.exec(className || '');
-      return !inline && match ? (
-        <SyntaxHighlighter
-          style={vscDarkPlus}
-          language={match[1]}
-          PreTag="div"
-          customStyle={{
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            fontSize: '0.875rem',
-            marginTop: '0.5rem',
-            marginBottom: '0.5rem',
-          }}
-          {...props}
-        >
-          {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
-      ) : (
-        <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props}>
-          {children}
-        </code>
-      );
-    },
-    p: ({children}: any) => (
-      <p className="mb-3 text-gray-900 leading-relaxed last:mb-0">{children}</p>
-    ),
-  };
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -236,11 +246,10 @@ export default function EditMCQPage() {
         </Button>
       </div>
 
-      {/* Preview Modal */}
+      {/* Preview Modal - Same as Create MCQ but with remarkBreaks */}
       {showPreview && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <Card className="w-full max-w-4xl max-h-[90vh] overflow-y-auto bg-white shadow-2xl">
-            {/* Preview Header */}
             <div className="sticky top-0 bg-gradient-to-r from-indigo-600 to-purple-600 p-6 z-10 shadow-lg">
               <div className="flex items-center justify-between">
                 <div>
@@ -258,10 +267,8 @@ export default function EditMCQPage() {
               </div>
             </div>
 
-            {/* Preview Content */}
             <div className="p-8 space-y-6 bg-gray-50">
               <Card className="p-8 border-2 border-indigo-200 shadow-lg bg-white">
-                {/* Question Header */}
                 <div className="flex items-start justify-between mb-6">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
@@ -277,11 +284,10 @@ export default function EditMCQPage() {
                   </div>
                 </div>
 
-                {/* Question Text with Markdown */}
                 <div className="mb-8">
                   <div className="prose prose-lg max-w-none">
                     <ReactMarkdown 
-                      remarkPlugins={[remarkGfm]}
+                      remarkPlugins={[remarkGfm, remarkBreaks]}
                       components={markdownComponents}
                     >
                       {formData.questionText || '*No question text provided yet*'}
@@ -289,7 +295,6 @@ export default function EditMCQPage() {
                   </div>
                 </div>
 
-                {/* Options */}
                 <div className="space-y-3">
                   {(['A', 'B', 'C', 'D'] as const).map((letter) => {
                     const optionValue = formData[`option${letter}` as keyof MCQFormData] as string;
@@ -328,7 +333,7 @@ export default function EditMCQPage() {
                           <div className="flex-1">
                             <div className="prose max-w-none">
                               <ReactMarkdown 
-                                remarkPlugins={[remarkGfm]}
+                                remarkPlugins={[remarkGfm, remarkBreaks]}
                                 components={markdownComponents}
                               >
                                 {optionValue || `*Option ${letter} not provided*`}
@@ -350,7 +355,6 @@ export default function EditMCQPage() {
                   })}
                 </div>
 
-                {/* Explanation */}
                 {showExplanation && formData.explanation && (
                   <div className="mt-6 p-6 bg-blue-50 border-2 border-blue-200 rounded-xl">
                     <div className="flex items-start gap-3">
@@ -361,7 +365,7 @@ export default function EditMCQPage() {
                         <h4 className="font-bold text-blue-900 mb-2">Explanation</h4>
                         <div className="prose max-w-none">
                           <ReactMarkdown 
-                            remarkPlugins={[remarkGfm]}
+                            remarkPlugins={[remarkGfm, remarkBreaks]}
                             components={markdownComponents}
                           >
                             {formData.explanation}
@@ -380,7 +384,6 @@ export default function EditMCQPage() {
               </Card>
             </div>
 
-            {/* Preview Footer */}
             <div className="sticky bottom-0 bg-white border-t-2 border-gray-200 p-6 shadow-2xl">
               <div className="flex items-center justify-end">
                 <Button 
@@ -396,10 +399,9 @@ export default function EditMCQPage() {
         </div>
       )}
 
-      {/* Form */}
+      {/* Form - Same as Create MCQ */}
       <form onSubmit={handleSubmit}>
         <Card className="p-6 space-y-6">
-          {/* Unit Selection */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Unit <span className="text-red-500">*</span>
@@ -419,7 +421,6 @@ export default function EditMCQPage() {
             </select>
           </div>
 
-          {/* Question Text */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Question Text <span className="text-red-500">*</span>
@@ -433,11 +434,10 @@ export default function EditMCQPage() {
               placeholder="Enter the question... Use ```java for code blocks"
             />
             <p className="text-xs text-gray-500 mt-1">
-              💡 Tip: Use <code className="bg-gray-100 px-1 py-0.5 rounded">```java</code> for code blocks, <code className="bg-gray-100 px-1 py-0.5 rounded">`code`</code> for inline code
+              💡 Tip: Use <code className="bg-gray-100 px-1 py-0.5 rounded">```java</code> for code blocks, <code className="bg-gray-100 px-1 py-0.5 rounded">`code`</code> for inline code. Press Enter for new lines.
             </p>
           </div>
 
-          {/* Options */}
           <div className="space-y-4">
             <label className="block text-sm font-medium text-gray-700">
               Answer Options <span className="text-red-500">*</span>
@@ -469,7 +469,6 @@ export default function EditMCQPage() {
             ))}
           </div>
 
-          {/* Correct Answer */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Correct Answer <span className="text-red-500">*</span>
@@ -487,7 +486,6 @@ export default function EditMCQPage() {
             </select>
           </div>
 
-          {/* Explanation */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Explanation
@@ -500,11 +498,10 @@ export default function EditMCQPage() {
               placeholder="Explain why this is the correct answer... Use ```java for code blocks"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Supports Markdown formatting including code blocks
+              Supports Markdown formatting including code blocks. Press Enter for new lines.
             </p>
           </div>
 
-          {/* Difficulty */}
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">
               Difficulty
@@ -520,7 +517,6 @@ export default function EditMCQPage() {
             </select>
           </div>
 
-          {/* Approved */}
           <div className="flex items-center gap-2">
             <input
               type="checkbox"
@@ -534,7 +530,6 @@ export default function EditMCQPage() {
             </label>
           </div>
 
-          {/* Actions */}
           <div className="flex items-center justify-end gap-3 pt-4 border-t">
             <Link href="/admin/exam-bank">
               <Button type="button" variant="outline">

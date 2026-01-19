@@ -16,14 +16,14 @@ interface QuestionCardProps {
   isSubmitting: boolean;
   questionNumber?: number;
   totalQuestions?: number;
-  startTime?: number; 
+  startTime?: number;
 }
 
-export function QuestionCard({ 
-  question, 
-  onSubmit, 
+export function QuestionCard({
+  question,
+  onSubmit,
   isSubmitting,
-  startTime = Date.now() // Default to current time if not provided
+  startTime = Date.now(),
 }: QuestionCardProps) {
   const [selectedAnswer, setSelectedAnswer] = useState<string>('');
   const [timeSpent, setTimeSpent] = useState(0);
@@ -31,8 +31,7 @@ export function QuestionCard({
 
   useEffect(() => {
     setSelectedAnswer('');
-    
-    // Update time display every second
+
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - localStartTime) / 1000);
       setTimeSpent(elapsed);
@@ -54,10 +53,8 @@ export function QuestionCard({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  // Handle undefined options
   const options = question.options || [];
 
-  // Show error if no options
   if (options.length === 0) {
     return (
       <Card className="p-6">
@@ -71,6 +68,7 @@ export function QuestionCard({
 
   return (
     <Card className="p-6">
+      {/* Header */}
       <div className="mb-4 flex items-start justify-between">
         <div className="flex-1">
           <div className="mb-2 flex items-center gap-2">
@@ -88,22 +86,29 @@ export function QuestionCard({
         </div>
       </div>
 
+      {/* Question Text */}
       <div className="mb-6">
         <MarkdownContent content={question.questionText} />
       </div>
 
+      {/* Answer Options */}
       <RadioGroup value={selectedAnswer} onValueChange={setSelectedAnswer}>
         <div className="space-y-3">
-          {options.map((option, index) => (
+          {options.map((option: string, index: number) => (
             <div
               key={index}
-              className={`flex items-start space-x-3 rounded-lg border-2 p-4 transition-all ${
+              className={`flex items-start space-x-3 rounded-lg border-2 p-4 transition-all cursor-pointer ${
                 selectedAnswer === option
                   ? 'border-indigo-600 bg-indigo-50'
-                  : 'border-gray-200 hover:border-gray-300'
+                  : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
               }`}
+              onClick={() => setSelectedAnswer(option)}
             >
-              <RadioGroupItem value={option} id={`option-${index}`} className="mt-1" />
+              <RadioGroupItem
+                value={option}
+                id={`option-${index}`}
+                className="mt-1"
+              />
               <Label
                 htmlFor={`option-${index}`}
                 className="flex-1 cursor-pointer text-base leading-relaxed"
@@ -115,6 +120,7 @@ export function QuestionCard({
         </div>
       </RadioGroup>
 
+      {/* Submit Button */}
       <div className="mt-6">
         <Button
           onClick={handleSubmit}

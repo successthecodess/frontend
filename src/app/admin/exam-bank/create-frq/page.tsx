@@ -42,6 +42,87 @@ interface TableData {
   data: string[][];
 }
 
+// Helper function to convert single newlines to line breaks
+// This adds two spaces before each newline, which Markdown renders as <br/>
+const processLineBreaks = (text: string): string => {
+  if (!text) return '';
+  // Replace single newlines with double-space + newline (Markdown line break)
+  // But preserve double newlines (paragraph breaks) and code blocks
+  
+  // Split by code blocks to avoid processing inside them
+  const codeBlockRegex = /(```[\s\S]*?```|`[^`]+`)/g;
+  const parts = text.split(codeBlockRegex);
+  
+  return parts.map((part, index) => {
+    // If it's a code block (odd indices after split with capturing group), don't process
+    if (part.startsWith('```') || part.startsWith('`')) {
+      return part;
+    }
+    // Replace single newlines (not double) with two spaces + newline
+    return part.replace(/(?<!\n)\n(?!\n)/g, '  \n');
+  }).join('');
+};
+
+// Shared markdown components
+const markdownComponents = {
+  code: ({node, inline, className, children, ...props}: any) => {
+    const match = /language-(\w+)/.exec(className || '');
+    return !inline && match ? (
+      <SyntaxHighlighter
+        style={vscDarkPlus}
+        language={match[1]}
+        PreTag="div"
+        customStyle={{
+          borderRadius: '0.5rem',
+          padding: '1rem',
+          fontSize: '0.875rem',
+          marginTop: '0.75rem',
+          marginBottom: '0.75rem',
+        }}
+        {...props}
+      >
+        {String(children).replace(/\n$/, '')}
+      </SyntaxHighlighter>
+    ) : (
+      <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props}>
+        {children}
+      </code>
+    );
+  },
+  p: ({children}: any) => (
+    <p className="mb-4 text-gray-800 leading-relaxed last:mb-0">{children}</p>
+  ),
+  table: ({children}: any) => (
+    <div className="overflow-x-auto my-6">
+      <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
+        {children}
+      </table>
+    </div>
+  ),
+  thead: ({children}: any) => (
+    <thead className="bg-gray-100">{children}</thead>
+  ),
+  th: ({children}: any) => (
+    <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border border-gray-300">
+      {children}
+    </th>
+  ),
+  td: ({children}: any) => (
+    <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
+      {children}
+    </td>
+  ),
+  ul: ({children}: any) => (
+    <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>
+  ),
+  ol: ({children}: any) => (
+    <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>
+  ),
+  li: ({children}: any) => (
+    <li className="text-gray-900">{children}</li>
+  ),
+};
+
 export default function CreateFRQPage() {
   const router = useRouter();
   const [units, setUnits] = useState<ExamUnit[]>([]);
@@ -369,50 +450,9 @@ export default function CreateFRQPage() {
                         <div className="prose prose-lg max-w-none">
                           <ReactMarkdown 
                             remarkPlugins={[remarkGfm]}
-                            components={{
-                              code: ({node, inline, className, children, ...props}: any) => {
-                                const match = /language-(\w+)/.exec(className || '');
-                                return !inline && match ? (
-                                  <SyntaxHighlighter
-                                    style={vscDarkPlus}
-                                    language={match[1]}
-                                    PreTag="div"
-                                    {...props}
-                                  >
-                                    {String(children).replace(/\n$/, '')}
-                                  </SyntaxHighlighter>
-                                ) : (
-                                  <code className={className} {...props}>
-                                    {children}
-                                  </code>
-                                );
-                              },
-                              table: ({children}: any) => (
-                                <div className="overflow-x-auto my-6">
-                                  <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
-                                    {children}
-                                  </table>
-                                </div>
-                              ),
-                              thead: ({children}: any) => (
-                                <thead className="bg-gray-100">{children}</thead>
-                              ),
-                              th: ({children}: any) => (
-                                <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border border-gray-300">
-                                  {children}
-                                </th>
-                              ),
-                              td: ({children}: any) => (
-                                <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
-                                  {children}
-                                </td>
-                              ),
-                              p: ({children}: any) => (
-                                <p className="mb-4 text-gray-800 leading-relaxed">{children}</p>
-                              ),
-                            }}
+                            components={markdownComponents}
                           >
-                            {formData.promptText || '*No context provided yet. Add your question scenario above.*'}
+                            {processLineBreaks(formData.promptText) || '*No context provided yet. Add your question scenario above.*'}
                           </ReactMarkdown>
                         </div>
                       </div>
@@ -475,50 +515,9 @@ export default function CreateFRQPage() {
                     <div className="prose prose-lg max-w-none">
                       <ReactMarkdown 
                         remarkPlugins={[remarkGfm]}
-                        components={{
-                          code: ({node, inline, className, children, ...props}: any) => {
-                            const match = /language-(\w+)/.exec(className || '');
-                            return !inline && match ? (
-                              <SyntaxHighlighter
-                                style={vscDarkPlus}
-                                language={match[1]}
-                                PreTag="div"
-                                {...props}
-                              >
-                                {String(children).replace(/\n$/, '')}
-                              </SyntaxHighlighter>
-                            ) : (
-                              <code className={className} {...props}>
-                                {children}
-                              </code>
-                            );
-                          },
-                          table: ({children}: any) => (
-                            <div className="overflow-x-auto my-6">
-                              <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
-                                {children}
-                              </table>
-                            </div>
-                          ),
-                          thead: ({children}: any) => (
-                            <thead className="bg-gray-100">{children}</thead>
-                          ),
-                          th: ({children}: any) => (
-                            <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border border-gray-300">
-                              {children}
-                            </th>
-                          ),
-                          td: ({children}: any) => (
-                            <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
-                              {children}
-                            </td>
-                          ),
-                          p: ({children}: any) => (
-                            <p className="mb-4 text-gray-800 leading-relaxed">{children}</p>
-                          ),
-                        }}
+                        components={markdownComponents}
                       >
-                        {parts[previewPartIndex].promptText || '*No instructions provided for this part yet.*'}
+                        {processLineBreaks(parts[previewPartIndex].promptText) || '*No instructions provided for this part yet.*'}
                       </ReactMarkdown>
                     </div>
                   </Card>
@@ -864,7 +863,7 @@ export default function CreateFRQPage() {
                 />
                 <p className="text-xs text-gray-600 mt-2 flex items-center gap-2">
                   <Sparkles className="h-3 w-3" />
-                  Shared context for all parts (scenario, class definition, etc.). Use Markdown for tables.
+                  Shared context for all parts (scenario, class definition, etc.). Use Markdown for tables. Press Enter for new lines.
                 </p>
               </div>
 
@@ -939,7 +938,7 @@ export default function CreateFRQPage() {
                     placeholder="(a) Write the simulateOneDay method, which simulates numBirds birds or possibly a bear..."
                   />
                   <p className="text-xs text-gray-600 mt-2">
-                    Use Markdown for tables and formatting
+                    Use Markdown for tables and formatting. Press Enter for new lines.
                   </p>
                 </div>
 
