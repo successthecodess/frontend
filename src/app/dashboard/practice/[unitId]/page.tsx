@@ -88,7 +88,7 @@ export default function PracticeSessionPage() {
         const data = await response.json();
         console.log('🔐 Access check:', data);
         
-        const canAccess = data.hasPracticeTestAccess || data.hasFullAccess || data.isAdmin || false;
+        const canAccess = data.hasFullAccess || data.isAdmin || false;
         setHasAccess(canAccess);
         
         if (!canAccess) {

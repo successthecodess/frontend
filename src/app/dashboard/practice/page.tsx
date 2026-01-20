@@ -66,7 +66,7 @@ export default function PracticePage() {
         console.log('🔐 Access check:', data);
         
         // Check for practice test access
-        const canAccess = data.hasPracticeTestAccess || data.hasFullAccess || data.isAdmin || false;
+        const canAccess =  data.hasFullAccess || data.isAdmin || false;
         setHasAccess(canAccess);
         
         if (canAccess) {

@@ -324,7 +324,7 @@ export default function UserEditPage() {
               { tag: 'apcs-test-access', label: 'Practice Test', color: 'bg-purple-50 text-purple-700 border-purple-200' },
               { tag: 'apcs-exam', label: '🔥 Premium Full Exam', color: 'bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-700 border-orange-300' },
               { tag: 'apcs-analytics', label: 'Analytics', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-              { tag: 'course-apcs-a', label: 'AP CS A Course', color: 'bg-orange-50 text-orange-700 border-orange-200' },
+            
             ].map(({ tag, label, color }) => (
               <Button
                 key={tag}
