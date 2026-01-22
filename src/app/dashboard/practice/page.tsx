@@ -16,7 +16,9 @@ import {
   Star,
   TrendingUp,
   GraduationCap,
-  ArrowRight
+  ArrowRight,
+  Shuffle,
+  Layers
 } from 'lucide-react';
 import { api } from '@/lib/api';
 
@@ -37,6 +39,7 @@ export default function PracticePage() {
   const [checkingAccess, setCheckingAccess] = useState(true);
   const [hasAccess, setHasAccess] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<string | null>(null);
+  const [isMixedMode, setIsMixedMode] = useState(false);
   const [questionCount, setQuestionCount] = useState(10);
   const [isTimedMode, setIsTimedMode] = useState(false);
   const [timePerQuestion, setTimePerQuestion] = useState(90);
@@ -65,8 +68,7 @@ export default function PracticePage() {
         const data = await response.json();
         console.log('🔐 Access check:', data);
         
-        // Check for practice test access
-        const canAccess =  data.hasFullAccess || data.isAdmin || false;
+        const canAccess = data.hasFullAccess || data.isAdmin || false;
         setHasAccess(canAccess);
         
         if (canAccess) {
@@ -101,12 +103,20 @@ export default function PracticePage() {
   const handleStartPractice = (unitId: string, hasQuestions: boolean) => {
     if (!hasQuestions) return;
     setSelectedUnit(unitId);
+    setIsMixedMode(false);
+    setShowModal(true);
+  };
+
+  const handleStartMixedPractice = () => {
+    const totalQuestions = units.reduce((sum, u) => sum + (u.questionCount || 0), 0);
+    if (totalQuestions === 0) return;
+    
+    setSelectedUnit(null);
+    setIsMixedMode(true);
     setShowModal(true);
   };
 
   const handleConfirmStart = () => {
-    if (!selectedUnit) return;
-    
     localStorage.setItem('targetQuestions', questionCount.toString());
     localStorage.setItem('isTimedMode', isTimedMode.toString());
     localStorage.setItem('timePerQuestion', timePerQuestion.toString());
@@ -117,10 +127,17 @@ export default function PracticePage() {
       timePerQuestion: timePerQuestion.toString(),
     });
     
-    router.push(`/dashboard/practice/${selectedUnit}?${params}`);
+    if (isMixedMode) {
+      params.append('mixed', 'true');
+      router.push(`/dashboard/practice/mixed?${params}`);
+    } else if (selectedUnit) {
+      router.push(`/dashboard/practice/${selectedUnit}?${params}`);
+    }
   };
 
-  // Loading state - checking access
+  const totalQuestionsAllUnits = units.reduce((sum, u) => sum + (u.questionCount || 0), 0);
+  const unitsWithQuestions = units.filter(u => (u.questionCount || 0) > 0);
+
   if (checkingAccess) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -132,12 +149,10 @@ export default function PracticePage() {
     );
   }
 
-  // No Access - Show Free Trial Prompt (similar to Full Exam page)
   if (!hasAccess) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 py-12">
         <div className="container mx-auto max-w-4xl px-4">
-          {/* Header */}
           <div className="text-center mb-8">
             <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full mb-4">
               <Lock className="h-10 w-10 text-white" />
@@ -150,7 +165,6 @@ export default function PracticePage() {
             </h2>
           </div>
 
-          {/* Premium Features */}
           <Card className="p-8 mb-6 border-2 border-blue-300 bg-gradient-to-br from-white to-blue-50">
             <div className="text-center mb-6">
               <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-500 text-white rounded-full font-bold mb-4">
@@ -174,8 +188,8 @@ export default function PracticePage() {
               <div className="flex items-start gap-3 p-4 bg-white rounded-lg border border-blue-200">
                 <CheckCircle className="h-6 w-6 text-green-600 flex-shrink-0 mt-0.5" />
                 <div>
-                  <p className="font-semibold text-gray-900">Adaptive Difficulty</p>
-                  <p className="text-sm text-gray-600">Questions adjust to your skill level automatically</p>
+                  <p className="font-semibold text-gray-900">Mixed Practice Mode</p>
+                  <p className="text-sm text-gray-600">Randomize questions across all units for comprehensive review</p>
                 </div>
               </div>
 
@@ -228,7 +242,6 @@ export default function PracticePage() {
             </div>
           </Card>
 
-          {/* Try Free Diagnostic - Primary CTA */}
           <Card className="p-8 mb-6 border-2 border-green-400 bg-gradient-to-br from-white to-green-50">
             <div className="text-center">
               <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full mb-4">
@@ -252,7 +265,6 @@ export default function PracticePage() {
             </div>
           </Card>
 
-          {/* Contact for Access */}
           <Card className="p-8 bg-gray-50">
             <div className="text-center">
               <h3 className="text-xl font-bold text-gray-900 mb-3">
@@ -271,7 +283,6 @@ export default function PracticePage() {
     );
   }
 
-  // Loading units
   if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center px-4">
@@ -285,7 +296,6 @@ export default function PracticePage() {
 
   const selectedUnitData = units.find(u => u.id === selectedUnit);
 
-  // Has Access - Show Normal Practice Page
   return (
     <div className="min-h-screen bg-gray-50 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
       <div className="max-w-7xl mx-auto space-y-6 sm:space-y-8">
@@ -297,8 +307,31 @@ export default function PracticePage() {
                 Start Practice Session
               </h3>
               <p className="text-xs sm:text-sm text-gray-600 mb-4 sm:mb-6">
-                {selectedUnitData?.name}
+                {isMixedMode ? (
+                  <span className="flex items-center gap-2">
+                    <Shuffle className="h-4 w-4 text-purple-600" />
+                    Mixed Practice - All Units
+                  </span>
+                ) : (
+                  selectedUnitData?.name
+                )}
               </p>
+
+              {isMixedMode && (
+                <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg">
+                  <div className="flex items-start gap-2">
+                    <Layers className="h-4 w-4 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-purple-900">
+                        Questions from {unitsWithQuestions.length} units
+                      </p>
+                      <p className="text-xs text-purple-700 mt-1">
+                        {totalQuestionsAllUnits} total questions available
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <div className="space-y-4 sm:space-y-6">
                 {/* Question Count */}
@@ -322,7 +355,6 @@ export default function PracticePage() {
                     ))}
                   </div>
                   
-                  {/* Custom input */}
                   <div className="mt-3">
                     <label className="block text-xs text-gray-600 mb-1">
                       Or enter custom amount:
@@ -330,7 +362,7 @@ export default function PracticePage() {
                     <input
                       type="number"
                       min="1"
-                      max="100"
+                      max={isMixedMode ? totalQuestionsAllUnits : 100}
                       value={questionCount}
                       onChange={(e) => setQuestionCount(parseInt(e.target.value) || 10)}
                       className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-indigo-500 focus:outline-none focus:ring-1 focus:ring-indigo-500"
@@ -399,12 +431,13 @@ export default function PracticePage() {
                     onClick={() => {
                       setShowModal(false);
                       setSelectedUnit(null);
+                      setIsMixedMode(false);
                     }}
                   >
                     Cancel
                   </Button>
                   <Button
-                    className="flex-1 gap-2"
+                    className={`flex-1 gap-2 ${isMixedMode ? 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700' : ''}`}
                     onClick={handleConfirmStart}
                   >
                     {isTimedMode ? (
@@ -412,6 +445,12 @@ export default function PracticePage() {
                         <Clock className="h-4 w-4" />
                         <span className="hidden sm:inline">Start Timed</span>
                         <span className="sm:hidden">Timed</span>
+                      </>
+                    ) : isMixedMode ? (
+                      <>
+                        <Shuffle className="h-4 w-4" />
+                        <span className="hidden sm:inline">Start Mixed</span>
+                        <span className="sm:hidden">Start</span>
                       </>
                     ) : (
                       <>
@@ -431,7 +470,7 @@ export default function PracticePage() {
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Practice Tests</h1>
           <p className="mt-2 text-sm sm:text-base text-gray-600">
-            Choose a unit to take a practice test
+            Choose a unit to take a practice test or try mixed practice
           </p>
         </div>
 
@@ -452,6 +491,78 @@ export default function PracticePage() {
             </div>
           </div>
         </Card>
+
+        {/* Mixed Practice Card */}
+        {totalQuestionsAllUnits > 0 && (
+          <Card 
+            className="overflow-hidden border-2 border-purple-300 bg-gradient-to-br from-purple-50 to-indigo-50 hover:shadow-xl transition-all cursor-pointer"
+            onClick={handleStartMixedPractice}
+          >
+            <div className="h-2 bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500" />
+            
+            <div className="p-4 sm:p-6">
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
+                    <Badge className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white border-0">
+                      <Shuffle className="h-3 w-3 mr-1" />
+                      Mixed Practice
+                    </Badge>
+                    <Badge variant="outline" className="text-purple-700 border-purple-400">
+                      {totalQuestionsAllUnits} Questions
+                    </Badge>
+                  </div>
+                  
+                  <h3 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">
+                    Practice All Units
+                  </h3>
+                  
+                  <p className="text-sm text-gray-600 mb-4">
+                    Randomize questions across all {unitsWithQuestions.length} units for comprehensive exam preparation. 
+                    Perfect for final review before the AP exam!
+                  </p>
+
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {unitsWithQuestions.slice(0, 5).map((unit) => (
+                      <span 
+                        key={unit.id}
+                        className={`px-2 py-1 rounded text-xs font-medium ${unit.color} text-white`}
+                      >
+                        U{unit.unitNumber}
+                      </span>
+                    ))}
+                    {unitsWithQuestions.length > 5 && (
+                      <span className="px-2 py-1 rounded text-xs font-medium bg-gray-200 text-gray-700">
+                        +{unitsWithQuestions.length - 5} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+                
+                <div className="flex-shrink-0 w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg">
+                  <Layers className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+                </div>
+              </div>
+
+              <Button className="w-full gap-2 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-lg">
+                <Shuffle className="h-4 w-4" />
+                Start Mixed Practice
+              </Button>
+            </div>
+          </Card>
+        )}
+
+        {/* Section Divider */}
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300" />
+          </div>
+          <div className="relative flex justify-center">
+            <span className="bg-gray-50 px-4 text-sm text-gray-500 font-medium">
+              Or practice by unit
+            </span>
+          </div>
+        </div>
 
         {/* Units Grid */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
@@ -483,6 +594,11 @@ export default function PracticePage() {
                         >
                           Unit {unit.unitNumber}
                         </Badge>
+                        {hasQuestions && (
+                          <Badge variant="outline" className="text-xs">
+                            {unit.questionCount} Qs
+                          </Badge>
+                        )}
                         {!hasQuestions && (
                           <Badge variant="outline" className="text-xs text-yellow-600 border-yellow-600">
                             <AlertCircle className="mr-1 h-3 w-3" />
@@ -496,12 +612,15 @@ export default function PracticePage() {
                     </div>
                     <div
                       className={`rounded-lg p-2 sm:p-3 flex-shrink-0 ${
-                        hasQuestions ? unit.color.replace('bg-', 'bg-') + '/10' : 'bg-gray-100'
+                        hasQuestions ? 'bg-opacity-10' : 'bg-gray-100'
                       }`}
+                      style={{
+                        backgroundColor: hasQuestions ? undefined : undefined,
+                      }}
                     >
                       <IconComponent
                         className={`h-5 w-5 sm:h-6 sm:w-6 ${
-                          hasQuestions ? unit.color.replace('bg-', 'text-') : 'text-gray-400'
+                          hasQuestions ? 'text-indigo-600' : 'text-gray-400'
                         }`}
                       />
                     </div>

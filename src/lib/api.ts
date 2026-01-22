@@ -4,14 +4,14 @@ import type { PartResponse } from '@/types/exam';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
 // Retry configuration
-const MAX_RETRIES = 2; // Reduced from 3
-const RETRY_DELAY = 500; // Reduced from 1000
-const TIMEOUT = 15000; // Reduced from 30000
+const MAX_RETRIES = 2;
+const RETRY_DELAY = 500;
+const TIMEOUT = 15000;
 
 // Request deduplication cache
 const pendingRequests = new Map<string, Promise<any>>();
 const responseCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 30000; // 30 seconds for frequently accessed data
+const CACHE_TTL = 30000;
 
 class APIError extends Error {
   constructor(
@@ -24,7 +24,6 @@ class APIError extends Error {
   }
 }
 
-// Get auth headers with JWT token
 const getAuthHeaders = () => {
   if (typeof window === 'undefined') return { 'Content-Type': 'application/json' };
 
@@ -88,7 +87,6 @@ async function handleResponse(
   try {
     const response = await fetchWithTimeout(url, options);
 
-    // Handle token expiration with auto-refresh
     if (response.status === 401 && !hasAttemptedRefresh) {
       const errorData = await response.json().catch(() => ({}));
 
@@ -163,33 +161,27 @@ async function handleResponse(
   }
 }
 
-// Deduplicated fetch with optional caching
 async function cachedFetch(
   cacheKey: string,
   fetchFn: () => Promise<any>,
   ttl: number = CACHE_TTL
 ): Promise<any> {
-  // Check cache first
   const cached = responseCache.get(cacheKey);
   if (cached && Date.now() - cached.timestamp < ttl) {
     return cached.data;
   }
 
-  // Check for pending request (deduplication)
   const pending = pendingRequests.get(cacheKey);
   if (pending) {
     return pending;
   }
 
-  // Make the request
   const promise = fetchFn()
     .then((data) => {
-      // Cache the response
       responseCache.set(cacheKey, { data, timestamp: Date.now() });
       return data;
     })
     .finally(() => {
-      // Clean up pending request after a short delay
       setTimeout(() => pendingRequests.delete(cacheKey), 100);
     });
 
@@ -204,7 +196,7 @@ export const api = {
     return cachedFetch('getUnits', () => {
       const url = `${API_BASE_URL}/units`;
       return handleResponse(url, { headers: getAuthHeaders() }, 'getUnits');
-    }, 60000); // Cache for 1 minute
+    }, 60000);
   },
 
   async getUnit(unitId: string) {
@@ -222,13 +214,15 @@ export const api = {
   },
 
   // Practice - NO CACHE (dynamic data)
+  // Updated to make unitId optional for mixed mode
   async startPracticeSession(
     userId: string,
-    unitId: string,
+    unitId?: string,
     topicId?: string,
     userEmail?: string,
     userName?: string,
-    targetQuestions?: number
+    targetQuestions?: number,
+    mixed?: boolean
   ) {
     const url = `${API_BASE_URL}/practice/start`;
     return handleResponse(
@@ -243,35 +237,40 @@ export const api = {
           userEmail,
           userName,
           targetQuestions,
+          mixed,
         }),
       },
       'startPracticeSession'
     );
   },
 
-  async getNextQuestion(
-    userId: string,
-    sessionId: string,
-    unitId: string,
-    answeredQuestionIds: string[]
-  ) {
-    const url = `${API_BASE_URL}/practice/next`;
-    return handleResponse(
-      url,
-      {
-        method: 'POST',
-        headers: getAuthHeaders(),
-        body: JSON.stringify({
-          userId,
-          sessionId,
-          unitId,
-          answeredQuestionIds,
-        }),
-      },
-      'getNextQuestion'
-    );
-  },
-
+ // Updated to include difficulty parameter for adaptive learning
+async getNextQuestion(
+  userId: string,
+  sessionId: string,
+  unitId?: string,
+  answeredQuestionIds?: string[],
+  mixed?: boolean,
+  difficulty?: string // NEW: Pass requested difficulty
+) {
+  const url = `${API_BASE_URL}/practice/next`;
+  return handleResponse(
+    url,
+    {
+      method: 'POST',
+      headers: getAuthHeaders(),
+      body: JSON.stringify({
+        userId,
+        sessionId,
+        unitId,
+        answeredQuestionIds,
+        mixed,
+        difficulty, // NEW: Include in request
+      }),
+    },
+    'getNextQuestion'
+  );
+},
   async submitAnswer(
     userId: string,
     sessionId: string,
@@ -310,18 +309,24 @@ export const api = {
   },
 
   // Progress - SHORT CACHE
-  async getUserProgress(userId: string, unitId: string) {
-    return cachedFetch(`progress_${userId}_${unitId}`, () => {
-      const url = `${API_BASE_URL}/progress/${userId}/${unitId}`;
+  async getUserProgress(userId: string, unitId?: string) {
+    const cacheKey = unitId ? `progress_${userId}_${unitId}` : `progress_${userId}_all`;
+    return cachedFetch(cacheKey, () => {
+      const url = unitId 
+        ? `${API_BASE_URL}/progress/${userId}/${unitId}`
+        : `${API_BASE_URL}/progress/${userId}`;
       return handleResponse(url, { headers: getAuthHeaders() }, 'getUserProgress');
-    }, 5000); // 5 second cache
+    }, 5000);
   },
 
-  async getLearningInsights(userId: string, unitId: string) {
-    return cachedFetch(`insights_${userId}_${unitId}`, () => {
-      const url = `${API_BASE_URL}/progress/insights/${userId}/${unitId}`;
+  async getLearningInsights(userId: string, unitId?: string) {
+    const cacheKey = unitId ? `insights_${userId}_${unitId}` : `insights_${userId}_all`;
+    return cachedFetch(cacheKey, () => {
+      const url = unitId
+        ? `${API_BASE_URL}/progress/insights/${userId}/${unitId}`
+        : `${API_BASE_URL}/progress/insights/${userId}`;
       return handleResponse(url, { headers: getAuthHeaders() }, 'getLearningInsights');
-    }, 10000); // 10 second cache
+    }, 10000);
   },
 
   // Dashboard
@@ -515,6 +520,19 @@ export const examApi = {
       const url = `${API_BASE_URL}/admin/exam-bank/questions/counts`;
       return handleResponse(url, { headers: getAuthHeaders() }, 'getQuestionCounts');
     }, 30000);
+  },
+
+  async createMCQQuestion(data: any) {
+    const url = `${API_BASE_URL}/admin/exam-bank/questions/mcq`;
+    return handleResponse(
+      url,
+      {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(data),
+      },
+      'createMCQQuestion'
+    );
   },
 
   async createFRQQuestion(data: any) {
