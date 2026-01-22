@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Gift, Lock, CheckCircle, XCircle, ArrowRight, Mail } from 'lucide-react';
+import { Gift, CheckCircle, XCircle, ArrowRight, Mail, RotateCcw } from 'lucide-react';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -42,8 +42,7 @@ const renderTextWithCode = (text: string) => {
 export default function FreeTrialPage() {
   const router = useRouter();
   const { user } = useAuth();
-  const [hasUsedTrial, setHasUsedTrial] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [session, setSession] = useState<any>(null);
   const [allQuestions, setAllQuestions] = useState<any[]>([]);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
@@ -53,6 +52,7 @@ export default function FreeTrialPage() {
   const [result, setResult] = useState<any>(null);
   const [summary, setSummary] = useState<any>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [attemptHistory, setAttemptHistory] = useState<any[]>([]);
 
   const currentQuestion = useMemo(
     () => allQuestions[currentQuestionIndex],
@@ -61,7 +61,7 @@ export default function FreeTrialPage() {
 
   useEffect(() => {
     if (user) {
-      checkTrialStatus();
+      loadAttemptHistory();
     }
   }, [user]);
 
@@ -71,24 +71,24 @@ export default function FreeTrialPage() {
     }
   }, [currentQuestionIndex, session, allQuestions]);
 
-  const checkTrialStatus = async () => {
+  const loadAttemptHistory = async () => {
     if (!user) return;
 
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/free-trial/status/${user.userId}`,
+        `${process.env.NEXT_PUBLIC_API_URL}/free-trial/history/${user.userId}`,
         {
           headers: { Authorization: `Bearer ${token}` },
         }
       );
 
-      const data = await response.json();
-      setHasUsedTrial(data.hasUsedFreeTrial);
+      if (response.ok) {
+        const data = await response.json();
+        setAttemptHistory(data.data || []);
+      }
     } catch (error) {
-      console.error('Failed to check trial status:', error);
-    } finally {
-      setLoading(false);
+      console.error('Failed to load attempt history:', error);
     }
   };
 
@@ -96,6 +96,11 @@ export default function FreeTrialPage() {
     if (!user) return;
 
     setLoading(true);
+    setSummary(null);
+    setSession(null);
+    setAllQuestions([]);
+    setCurrentQuestionIndex(0);
+
     try {
       const token = localStorage.getItem('authToken');
       const response = await fetch(
@@ -191,6 +196,7 @@ export default function FreeTrialPage() {
           correctAnswers: data.data.session.correctAnswers,
           accuracy: Math.round((data.data.session.correctAnswers / data.data.session.totalQuestions) * 100),
         });
+        loadAttemptHistory();
       }
     } catch (error) {
       console.error('Failed to submit answer:', error);
@@ -258,33 +264,10 @@ export default function FreeTrialPage() {
     window.location.href = `mailto:daniel@enginearu.com?subject=${subject}&body=${body}`;
   };
 
-  if (loading) {
+  if (loading && !session) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full"></div>
-      </div>
-    );
-  }
-
-  if (hasUsedTrial && !session) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
-        <Card className="max-w-md p-8 text-center">
-          <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
-            <Lock className="h-8 w-8 text-yellow-600" />
-          </div>
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">
-            Thanks for Trying Our Free Trial!
-          </h2>
-          <p className="text-gray-600 mb-6">
-            You've already completed your one-time free diagnostic quiz. To continue practicing and access our full question bank, please contact your instructor for access.
-          </p>
-          <div className="space-y-3">
-            <Button onClick={() => router.push('/dashboard')} className="w-full">
-              Return to Dashboard
-            </Button>
-          </div>
-        </Card>
       </div>
     );
   }
@@ -298,10 +281,10 @@ export default function FreeTrialPage() {
               <CheckCircle className="h-10 w-10 text-green-600" />
             </div>
             <h2 className="text-3xl font-bold text-gray-900 mb-2">
-              Free Trial Complete!
+              Quiz Complete!
             </h2>
             <p className="text-gray-600">
-              Here's how you performed on the diagnostic quiz
+              Here's how you performed on this diagnostic quiz
             </p>
           </div>
 
@@ -319,6 +302,24 @@ export default function FreeTrialPage() {
               <p className="text-3xl font-bold text-indigo-600">{summary.accuracy}%</p>
             </div>
           </div>
+
+          {attemptHistory.length > 0 && (
+            <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+              <h3 className="font-semibold text-blue-900 mb-3">📊 Your Progress</h3>
+              <div className="space-y-2">
+                {attemptHistory.slice(0, 5).map((attempt, index) => (
+                  <div key={index} className="flex justify-between text-sm">
+                    <span className="text-blue-800">
+                      Attempt #{attemptHistory.length - index}
+                    </span>
+                    <span className="font-semibold text-blue-900">
+                      {attempt.correctAnswers}/{attempt.totalQuestions} ({Math.round((attempt.correctAnswers / attempt.totalQuestions) * 100)}%)
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 mb-6">
             <h3 className="font-semibold text-yellow-900 mb-2">
@@ -340,8 +341,18 @@ export default function FreeTrialPage() {
           </div>
 
           <div className="space-y-3">
-            <Button onClick={() => router.push('/dashboard')} className="w-full">
-              Return to Dashboard
+            <Button onClick={startTrial} className="w-full" disabled={loading}>
+              {loading ? (
+                <>
+                  <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+                  Starting...
+                </>
+              ) : (
+                <>
+                  <RotateCcw className="mr-2 h-4 w-4" />
+                  Take Another Quiz
+                </>
+              )}
             </Button>
             <Button
               onClick={handleContactInstructor}
@@ -350,7 +361,13 @@ export default function FreeTrialPage() {
             >
               <Mail className="mr-2 h-4 w-4" />
               Contact Instructor for Full Access
-        
+            </Button>
+            <Button
+              onClick={() => router.push('/dashboard')}
+              variant="ghost"
+              className="w-full"
+            >
+              Return to Dashboard
             </Button>
           </div>
         </Card>
@@ -502,10 +519,10 @@ export default function FreeTrialPage() {
             <Gift className="h-10 w-10 text-indigo-600" />
           </div>
           <h1 className="text-3xl font-bold text-gray-900 mb-2">
-            Try Our Free Diagnostic Quiz
+            Free Diagnostic Quiz
           </h1>
           <p className="text-gray-600">
-            Test your AP Computer Science A knowledge with 10 carefully selected questions
+            Test your AP Computer Science A knowledge with randomized questions
           </p>
         </div>
 
@@ -515,30 +532,41 @@ export default function FreeTrialPage() {
             <p className="text-sm text-gray-600">Questions</p>
           </div>
           <div className="p-4 bg-white rounded-lg border text-center">
-            <p className="text-3xl font-bold text-indigo-600">All Units</p>
-            <p className="text-sm text-gray-600">Covered</p>
+            <p className="text-3xl font-bold text-indigo-600">∞</p>
+            <p className="text-sm text-gray-600">Unlimited Attempts</p>
           </div>
         </div>
 
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-6">
-          <h3 className="font-semibold text-blue-900 mb-3">What's Included:</h3>
-          <ul className="space-y-2 text-sm text-blue-800">
-            <li>✓ Questions from all 10 AP CS A units</li>
-            <li>✓ Coverage of key topics including file scanning</li>
-            <li>✓ Instant feedback on each answer</li>
-            <li>✓ Detailed explanations</li>
-            <li>✓ Performance summary at the end</li>
-          </ul>
-        </div>
+        {attemptHistory.length > 0 && (
+          <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+            <h3 className="font-semibold text-blue-900 mb-3">📊 Your Previous Attempts</h3>
+            <div className="space-y-2">
+              {attemptHistory.slice(0, 3).map((attempt, index) => (
+                <div key={index} className="flex justify-between text-sm">
+                  <span className="text-blue-800">
+                    Attempt #{attemptHistory.length - index}
+                  </span>
+                  <span className="font-semibold text-blue-900">
+                    {attempt.correctAnswers}/{attempt.totalQuestions} ({Math.round((attempt.correctAnswers / attempt.totalQuestions) * 100)}%)
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
-        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-          <p className="text-sm text-yellow-800">
-            <strong>Note:</strong> This is a one-time free trial. After completing the quiz, contact your instructor for full access to unlimited practice questions and tests.
-          </p>
-        </div>
-
-        <Button onClick={startTrial} className="w-full" size="lg">
-          Start Free Diagnostic Quiz
+    
+        <Button onClick={startTrial} className="w-full" size="lg" disabled={loading}>
+          {loading ? (
+            <>
+              <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"></div>
+              Starting...
+            </>
+          ) : (
+            <>
+              {attemptHistory.length > 0 ? 'Start New Quiz' : 'Start Diagnostic Quiz'}
+            </>
+          )}
         </Button>
       </Card>
     </div>
