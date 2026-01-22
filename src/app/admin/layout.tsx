@@ -100,12 +100,12 @@ export default function AdminLayout({
     { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Admins', href: '/admin/admins', icon: Shield },
+     { name: 'Questions', href: '/admin/questions', icon: Settings },
     { name: 'Feature Flags', href: '/admin/features', icon: Flag },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
     { name: 'Metrics', href: '/admin/full-exams', icon: BarChart },
-    { name: 'Free Trial', href: '/admin/free-trial', icon: Gift },
     { name: 'Bulk Upload', href: '/admin/upload', icon: Upload },
-    { name: 'Questions', href: '/admin/questions', icon: Settings },
+   
     { name: 'GHL Setup', href: '/admin/ghl-setup', icon: Settings },
   ];
 
