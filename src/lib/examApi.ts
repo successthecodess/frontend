@@ -212,6 +212,30 @@ export const examApi = {
     return handleResponse(url, { headers: getAuthHeaders() }, 'getQuestionCounts');
   },
 
+async getExamHistory() {
+  const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
+  
+  if (!userStr) {
+    console.error('No user in localStorage');
+    throw new Error('User not found');
+  }
+  
+  const user = JSON.parse(userStr);
+  const userId = user.userId || user.id;
+  
+  console.log('🔍 Fetching history for userId:', userId);
+  console.log('🔍 Full user object:', user);
+  
+  if (!userId) {
+    console.error('No userId found in user object:', user);
+    throw new Error('User ID not found');
+  }
+  
+  const url = `${API_BASE_URL}/full-exam/history/${userId}`;
+  console.log('🔍 Fetching from URL:', url);
+  
+  return handleResponse(url, { headers: getAuthHeaders() }, 'getExamHistory');
+},
   async createFRQQuestion(data: any) {
     const url = `${API_BASE_URL}/admin/exam-bank/questions/frq`;
     return handleResponse(

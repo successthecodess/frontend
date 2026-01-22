@@ -18,9 +18,25 @@ import { examApi } from '@/lib/examApi';
 import type { FullExamAttempt, ExamAttemptMCQ } from '@/types/exam';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import remarkBreaks from 'remark-gfm';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+
+// Helper function to process line breaks while preserving code blocks
+const processLineBreaks = (text: string): string => {
+  if (!text) return '';
+  
+  // Split by code blocks (``` ... ```) to preserve them
+  const parts = text.split(/(```[\s\S]*?```)/g);
+  
+  return parts.map((part, index) => {
+    // Odd indices are code blocks - leave them unchanged
+    if (index % 2 === 1) return part;
+    
+    // For non-code parts, convert single newlines to markdown line breaks (two spaces + newline)
+    // But don't convert if there are already two consecutive newlines (paragraph break)
+    return part.replace(/(?<!\n)\n(?!\n)/g, '  \n');
+  }).join('');
+};
 
 export default function FullExamPage() {
   const params = useParams();
@@ -155,61 +171,75 @@ export default function FullExamPage() {
 
   // Markdown components for rendering
   const markdownComponents = {
-    code: ({node, inline, className, children, ...props}: any) => {
+    code: ({ node, inline, className, children, ...props }: any) => {
       const match = /language-(\w+)/.exec(className || '');
-      return !inline && match ? (
-        <SyntaxHighlighter
-          style={vscDarkPlus}
-          language={match[1]}
-          PreTag="div"
-          customStyle={{
-            borderRadius: '0.5rem',
-            padding: '1rem',
-            fontSize: '0.875rem',
-            marginTop: '0.75rem',
-            marginBottom: '0.75rem',
-          }}
+      const codeString = String(children).replace(/\n$/, '');
+      
+      // Check if it's a code block (has language or is multiline without inline flag)
+      if (!inline && (match || codeString.includes('\n'))) {
+        return (
+          <SyntaxHighlighter
+            style={vscDarkPlus}
+            language={match ? match[1] : 'java'}
+            PreTag="div"
+            customStyle={{
+              borderRadius: '0.5rem',
+              padding: '1rem',
+              fontSize: '0.875rem',
+              marginTop: '0.75rem',
+              marginBottom: '0.75rem',
+            }}
+            {...props}
+          >
+            {codeString}
+          </SyntaxHighlighter>
+        );
+      }
+      
+      // Inline code
+      return (
+        <code 
+          className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" 
           {...props}
         >
-          {String(children).replace(/\n$/, '')}
-        </SyntaxHighlighter>
-      ) : (
-        <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props}>
           {children}
         </code>
       );
     },
-    p: ({children}: any) => (
+    pre: ({ children }: any) => {
+      // Just return children - the code component handles the styling
+      return <>{children}</>;
+    },
+    p: ({ children }: any) => (
       <p className="mb-4 text-gray-900 leading-relaxed last:mb-0">{children}</p>
     ),
-    br: () => <br className="block" />,
-    table: ({children}: any) => (
+    table: ({ children }: any) => (
       <div className="overflow-x-auto my-4">
         <table className="min-w-full divide-y divide-gray-300 border border-gray-300">
           {children}
         </table>
       </div>
     ),
-    thead: ({children}: any) => (
+    thead: ({ children }: any) => (
       <thead className="bg-gray-100">{children}</thead>
     ),
-    th: ({children}: any) => (
+    th: ({ children }: any) => (
       <th className="px-4 py-3 text-left text-sm font-semibold text-gray-900 border border-gray-300">
         {children}
       </th>
     ),
-    td: ({children}: any) => (
+    td: ({ children }: any) => (
       <td className="px-4 py-3 text-sm text-gray-700 border border-gray-300">
         {children}
       </td>
     ),
-    ul: ({children}: any) => (
+    ul: ({ children }: any) => (
       <ul className="list-disc list-inside space-y-1 my-2">{children}</ul>
     ),
-    ol: ({children}: any) => (
+    ol: ({ children }: any) => (
       <ol className="list-decimal list-inside space-y-1 my-2">{children}</ol>
     ),
-    li: ({children}: any) => (
+    li: ({ children }: any) => (
       <li className="text-gray-900">{children}</li>
     ),
   };
@@ -372,10 +402,10 @@ export default function FullExamPage() {
               <div className="mb-8">
                 <div className="prose prose-lg max-w-none">
                   <ReactMarkdown 
-                    remarkPlugins={[remarkGfm, remarkBreaks]}
+                    remarkPlugins={[remarkGfm]}
                     components={markdownComponents}
                   >
-                    {currentQuestion.question.questionText}
+                    {processLineBreaks(currentQuestion.question.questionText)}
                   </ReactMarkdown>
                 </div>
               </div>
@@ -406,10 +436,10 @@ export default function FullExamPage() {
                         </div>
                         <div className="flex-1 pt-1 prose max-w-none">
                           <ReactMarkdown 
-                            remarkPlugins={[remarkGfm, remarkBreaks]}
+                            remarkPlugins={[remarkGfm]}
                             components={markdownComponents}
                           >
-                            {option}
+                            {processLineBreaks(option)}
                           </ReactMarkdown>
                         </div>
                       </div>

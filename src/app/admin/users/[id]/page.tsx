@@ -323,8 +323,7 @@ export default function UserEditPage() {
             {[
               { tag: 'apcs-test-access', label: 'Practice Test', color: 'bg-purple-50 text-purple-700 border-purple-200' },
               { tag: 'apcs-exam', label: '🔥 Premium Full Exam', color: 'bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-700 border-orange-300' },
-              { tag: 'apcs-analytics', label: 'Analytics', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
-            
+             
             ].map(({ tag, label, color }) => (
               <Button
                 key={tag}
@@ -355,8 +354,7 @@ export default function UserEditPage() {
             <ul className="text-xs text-blue-600 mt-1 space-y-1">
               <li>• <strong>apcs-test-access</strong>: Full practice test access</li>
               <li>• <strong className="text-orange-600">apcs-exam</strong>: 🔥 PREMIUM - Full exam with detailed report, AP score prediction, analytics & recommendations</li>
-              <li>• <strong>apcs-analytics</strong>: Performance analytics dashboard</li>
-              <li>• <strong>course-apcs-a</strong>: AP Computer Science A course access</li>
+             
             </ul>
           </div>
         </div>
