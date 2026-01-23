@@ -261,41 +261,7 @@ const UnitsOverview = memo(function UnitsOverview({
   onUnitClick: (unitId: string) => void;
 }) {
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-bold text-gray-900">AP CS A Units Coverage</h2>
-        <Badge variant="outline" className="text-xs">
-          2025 Curriculum
-        </Badge>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3">
-        {units.map(unit => (
-          <div
-            key={unit.id}
-            className="border rounded-lg p-3 hover:border-indigo-400 hover:shadow-md transition-all cursor-pointer"
-            onClick={() => onUnitClick(unit.id)}
-          >
-            <div className="flex items-center justify-between mb-1">
-              <span className="font-semibold text-gray-900 text-sm">Unit {unit.unitNumber}</span>
-              <span className="text-xs px-1.5 py-0.5 bg-indigo-100 text-indigo-700 rounded">
-                {unit.examWeight}
-              </span>
-            </div>
-            <p className="text-xs text-gray-600 truncate mb-2">{unit.name}</p>
-            <div className="flex items-center gap-2 text-xs text-gray-500">
-              <span className="flex items-center gap-1">
-                <FileText className="h-3 w-3" />
-                {unit.mcqCount || 0}
-              </span>
-              <span className="flex items-center gap-1">
-                <Code className="h-3 w-3" />
-                {unit.frqCount || 0}
-              </span>
-            </div>
-          </div>
-        ))}
-      </div>
-    </Card>
+    <div></div>
   );
 });
 
