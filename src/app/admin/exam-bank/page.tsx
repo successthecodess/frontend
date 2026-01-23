@@ -163,30 +163,6 @@ export default function ExamBankPage() {
         </Card>
       </div>
 
-      {/* Units Info */}
-      <Card className="p-6">
-        <h2 className="text-xl font-bold mb-4">2025 AP CS A Units</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {units.map(unit => (
-            <div
-              key={unit.id}
-              className="border rounded-lg p-4 hover:border-indigo-500 transition-colors"
-            >
-              <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold text-gray-900">Unit {unit.unitNumber}</h3>
-                <span className="text-xs px-2 py-1 bg-indigo-100 text-indigo-700 rounded">
-                  {unit.examWeight}
-                </span>
-              </div>
-              <p className="text-sm text-gray-600 mb-3">{unit.name}</p>
-              <div className="flex items-center justify-between text-xs text-gray-500">
-                <span>{unit.mcqCount || 0} MCQ</span>
-                <span>{unit.frqCount || 0} FRQ</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      </Card>
 
       {/* Filters */}
       <Card className="p-4">
