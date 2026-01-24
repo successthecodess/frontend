@@ -250,9 +250,13 @@ export default function LandingPage() {
         <div className="mx-auto max-w-7xl px-3 sm:px-4 md:px-6 lg:px-8 py-8 sm:py-10 md:py-12">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4 sm:gap-6">
             <Link href="/" className="flex items-center gap-1.5 sm:gap-2 transition-transform hover:scale-105">
-              <div className="rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600 p-1.5 sm:p-2 shadow-md">
-                <Code className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
-              </div>
+               <Image
+                src="/img.jpeg"
+                alt="AP CS A Logo"
+                width={40}
+                height={40}
+                className="object-contain w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 flex-shrink-0"
+              />
               <span className="text-sm sm:text-base md:text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
                 AP CS A Practice
               </span>
