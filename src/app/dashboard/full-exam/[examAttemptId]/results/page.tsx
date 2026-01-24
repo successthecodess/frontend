@@ -15,20 +15,24 @@ import {
   BookOpen,
   ArrowRight,
   RefreshCw,
-  Eye,
   Calendar,
   Mail,
   Star,
   Loader2,
   ChevronDown,
   ChevronUp,
+  TrendingUp,
+  TrendingDown,
+  Minus,
 } from 'lucide-react';
 import Link from 'next/link';
 import { examApi } from '@/lib/examApi';
+import remarkGfm from 'remark-gfm';
 
 // Lazy load heavy components
 const ReactMarkdown = lazy(() => import('react-markdown'));
 const SyntaxHighlighter = lazy(() => import('react-syntax-highlighter').then(mod => ({ default: mod.Prism })));
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 export default function ExamResultsPage() {
   const params = useParams();
@@ -40,6 +44,39 @@ export default function ExamResultsPage() {
   const [expandedFRQ, setExpandedFRQ] = useState<number | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
   const [userName, setUserName] = useState<string>('');
+
+  // Markdown components for better rendering
+  const markdownComponents = {
+    code: ({node, inline, className, children, ...props}: any) => {
+      const match = /language-(\w+)/.exec(className || '');
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={match[1]}
+          PreTag="div"
+          customStyle={{
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            fontSize: '0.875rem',
+            marginTop: '0.75rem',
+            marginBottom: '0.75rem',
+          }}
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props}>
+          {children}
+        </code>
+      );
+    },
+    p: ({ node, ...props }: any) => <p className="mb-2 text-gray-800" {...props} />,
+    ul: ({ node, ...props }: any) => <ul className="list-disc ml-4 mb-2" {...props} />,
+    ol: ({ node, ...props }: any) => <ol className="list-decimal ml-4 mb-2" {...props} />,
+    li: ({ node, ...props }: any) => <li className="mb-1" {...props} />,
+    strong: ({ node, ...props }: any) => <strong className="font-bold" {...props} />,
+  };
 
   // Memoize calculations
   const mcqOnlyAPScore = useMemo(() => {
@@ -92,6 +129,34 @@ export default function ExamResultsPage() {
     return { label: 'Needs Improvement', color: 'text-orange-600', bg: 'bg-orange-50' };
   }, [results]);
 
+  // Process unit breakdown data
+  const unitPerformance = useMemo(() => {
+    if (!results?.unitBreakdown) return [];
+    
+    const breakdown = typeof results.unitBreakdown === 'string' 
+      ? JSON.parse(results.unitBreakdown) 
+      : results.unitBreakdown;
+
+    if (!Array.isArray(breakdown)) {
+      // Convert object to array
+      return Object.values(breakdown)
+        .map((unit: any) => ({
+          ...unit,
+          total: unit.mcqTotal || 0,
+          correct: unit.mcqCorrect || 0,
+          accuracyPercentage: unit.mcqTotal > 0 ? (unit.mcqCorrect / unit.mcqTotal) * 100 : 0,
+        }))
+        .sort((a: any, b: any) => b.accuracyPercentage - a.accuracyPercentage);
+    }
+
+    return breakdown
+      .map((unit: any) => ({
+        ...unit,
+        accuracyPercentage: unit.total > 0 ? (unit.correct / unit.total) * 100 : 0,
+      }))
+      .sort((a: any, b: any) => b.accuracyPercentage - a.accuracyPercentage);
+  }, [results]);
+
   useEffect(() => {
     loadResults();
     loadUserInfo();
@@ -102,6 +167,7 @@ export default function ExamResultsPage() {
       setLoading(true);
       const response = await examApi.getExamResults(examAttemptId);
       console.log('📊 Loaded exam results:', response.data);
+      console.log('📊 FRQ Details:', response.data.frqDetails);
       setResults(response.data);
     } catch (error) {
       console.error('Failed to load results:', error);
@@ -138,6 +204,22 @@ export default function ExamResultsPage() {
     if (score === 3) return 'Qualified';
     if (score === 2) return 'Possibly Qualified';
     return 'No Recommendation';
+  };
+
+  const getPerformanceColor = (percentage: number) => {
+    if (percentage >= 90) return { bg: 'bg-green-500', text: 'text-green-700', icon: TrendingUp };
+    if (percentage >= 80) return { bg: 'bg-blue-500', text: 'text-blue-700', icon: TrendingUp };
+    if (percentage >= 70) return { bg: 'bg-indigo-500', text: 'text-indigo-700', icon: Minus };
+    if (percentage >= 60) return { bg: 'bg-yellow-500', text: 'text-yellow-700', icon: Minus };
+    return { bg: 'bg-red-500', text: 'text-red-700', icon: TrendingDown };
+  };
+
+  const getPerformanceLabel = (percentage: number) => {
+    if (percentage >= 90) return 'Mastered';
+    if (percentage >= 80) return 'Strong';
+    if (percentage >= 70) return 'Good';
+    if (percentage >= 60) return 'Satisfactory';
+    return 'Needs Work';
   };
 
   const handleScheduleReview = (frqNumber: number) => {
@@ -252,6 +334,90 @@ ${userEmail}
           </div>
         </Card>
 
+        {/* Unit Performance Breakdown */}
+        {unitPerformance.length > 0 && (
+          <Card className="p-6 mb-8">
+            <h3 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <Target className="h-6 w-6 text-indigo-600" />
+              Performance by Unit
+            </h3>
+            <div className="space-y-3">
+              {unitPerformance.map((unit: any, index: number) => {
+                const perfColor = getPerformanceColor(unit.accuracyPercentage);
+                const PerformanceIcon = perfColor.icon;
+                
+                return (
+                  <div key={index} className="bg-white border-2 rounded-lg p-4 hover:shadow-md transition-shadow">
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3">
+                          <div className="flex items-center gap-2">
+                            <span className="font-bold text-lg text-gray-900">
+                              Unit {unit.unitNumber}
+                            </span>
+                            <span className="text-gray-600">•</span>
+                            <span className="text-gray-700">{unit.unitName}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4 mt-2">
+                          <span className="text-sm text-gray-600">
+                            {unit.correct}/{unit.total} correct
+                          </span>
+                          <div className={`flex items-center gap-1 text-sm font-semibold ${perfColor.text}`}>
+                            <PerformanceIcon className="h-4 w-4" />
+                            {getPerformanceLabel(unit.accuracyPercentage)}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <div className="text-3xl font-bold text-gray-900">
+                          {unit.accuracyPercentage.toFixed(0)}%
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {/* Progress Bar */}
+                    <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                      <div
+                        className={`h-full ${perfColor.bg} transition-all duration-500`}
+                        style={{ width: `${unit.accuracyPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Unit Performance Summary */}
+            <div className="mt-6 p-4 bg-gradient-to-r from-indigo-50 to-purple-50 rounded-lg border-2 border-indigo-200">
+              <h4 className="font-semibold text-indigo-900 mb-2 flex items-center gap-2">
+                <BarChart3 className="h-5 w-5" />
+                Quick Analysis
+              </h4>
+              <div className="grid md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <p className="text-indigo-600 font-medium">Strongest Unit:</p>
+                  <p className="text-gray-900 font-semibold">
+                    {unitPerformance[0]?.unitName || 'N/A'} ({unitPerformance[0]?.accuracyPercentage.toFixed(0)}%)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-indigo-600 font-medium">Needs Focus:</p>
+                  <p className="text-gray-900 font-semibold">
+                    {unitPerformance[unitPerformance.length - 1]?.unitName || 'N/A'} ({unitPerformance[unitPerformance.length - 1]?.accuracyPercentage.toFixed(0)}%)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-indigo-600 font-medium">Units Mastered:</p>
+                  <p className="text-gray-900 font-semibold">
+                    {unitPerformance.filter((u: any) => u.accuracyPercentage >= 90).length} of {unitPerformance.length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Schedule Review CTA */}
         <Card className="p-6 mb-8 bg-gradient-to-r from-purple-500 to-indigo-600 text-white">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
@@ -298,7 +464,7 @@ ${userEmail}
           </div>
         </Card>
 
-        {/* FRQ Section with Rubrics */}
+        {/* FRQ Section with Rubrics - MERGED FROM ADMIN VIEW */}
         {results.frqDetails && results.frqDetails.length > 0 && (
           <Card className="p-6 mb-8">
             <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
@@ -347,14 +513,7 @@ ${userEmail}
                               Question Prompt
                             </h5>
                             <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded">
-                              <ReactMarkdown components={{
-          p: ({ node, ...props }) => <p className="mb-2 text-gray-800" {...props} />,
-          ul: ({ node, ...props }) => <ul className="list-disc ml-4 mb-2" {...props} />,
-          ol: ({ node, ...props }) => <ol className="list-decimal ml-4 mb-2" {...props} />,
-          li: ({ node, ...props }) => <li className="mb-1" {...props} />,
-          code: ({ node, ...props }) => <code className="bg-gray-200 px-1 py-0.5 rounded text-sm" {...props} />,
-          strong: ({ node, ...props }) => <strong className="font-bold" {...props} />,
-        }}>
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                                 {frq.question.promptText}
                               </ReactMarkdown>
                             </div>
@@ -367,93 +526,110 @@ ${userEmail}
                             <Code className="h-5 w-5 text-green-600" />
                             Your Solution
                           </h5>
-                          <SyntaxHighlighter
-                            language="java"
-                            customStyle={{ borderRadius: '0.5rem', padding: '1rem' }}
-                          >
-                            {frq.userCode || '// No solution submitted'}
-                          </SyntaxHighlighter>
+                          {frq.userCode && frq.userCode.trim() ? (
+                            <SyntaxHighlighter
+                              language="java"
+                              style={vscDarkPlus}
+                              customStyle={{ borderRadius: '0.5rem', padding: '1rem' }}
+                            >
+                              {frq.userCode}
+                            </SyntaxHighlighter>
+                          ) : (
+                            <div className="p-8 bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg text-center">
+                              <Code className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                              <p className="text-gray-600 font-medium">No solution submitted</p>
+                            </div>
+                          )}
                         </div>
 
-                        {/* RUBRIC SECTION */}
-                        {frq.question?.frqParts && frq.question.frqParts.length > 0 && (
-                          <div className="mb-6">
-                            <h5 className="font-bold text-lg mb-3 flex items-center gap-2">
+                        {/* Sample Solutions & Rubrics - MERGED FROM ADMIN */}
+                        {frq.question?.frqParts && frq.question.frqParts.length > 0 ? (
+                          <div className="space-y-6">
+                            <h5 className="font-bold text-lg border-t pt-6 flex items-center gap-2">
                               <Target className="h-5 w-5 text-purple-600" />
-                              Scoring Rubric ({frq.question.maxPoints || 9} points total)
+                              Sample Solutions & Scoring Rubrics ({frq.question.maxPoints || 9} points total)
                             </h5>
-                            
-                            <div className="space-y-4">
-                              {frq.question.frqParts.map((part: any, partIndex: number) => (
-                                <Card key={partIndex} className="p-4 border-2 border-purple-200 bg-purple-50/30">
-                                  <div className="flex items-start gap-3 mb-3">
-                                    <div className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center font-bold text-lg flex-shrink-0">
-                                      {part.partLetter}
-                                    </div>
-                                    <div className="flex-1">
-                                      <h6 className="font-bold text-gray-900">
-                                        Part {part.partLetter} ({part.maxPoints || 0} {part.maxPoints === 1 ? 'point' : 'points'})
-                                      </h6>
-                                      {part.partDescription && (
-                                        <p className="text-gray-600 text-sm mt-1">{part.partDescription}</p>
-                                      )}
+                            {frq.question.frqParts.map((part: any, partIndex: number) => (
+                              <div key={partIndex} className="border-l-4 border-purple-500 pl-6 bg-purple-50 p-4 rounded-r-lg">
+                                <h6 className="font-bold text-gray-900 mb-3">
+                                  Part ({part.partLetter}) - {part.maxPoints} points
+                                </h6>
+                                
+                                {/* Part Prompt */}
+                                {part.partDescription && (
+                                  <div className="mb-4">
+                                    <p className="text-sm font-semibold text-gray-700 mb-2">Prompt:</p>
+                                    <div className="prose prose-sm max-w-none">
+                                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                        {part.partDescription}
+                                      </ReactMarkdown>
                                     </div>
                                   </div>
+                                )}
 
-                                  {/* Rubric Items */}
-                                  {part.rubricItems && part.rubricItems.length > 0 && (
-                                    <div className="ml-13 space-y-2 mb-4">
-                                      <p className="text-sm font-semibold text-gray-700 mb-2">Scoring Criteria:</p>
-                                      {part.rubricItems.map((item: any, itemIndex: number) => (
-                                        <div key={itemIndex} className="flex items-start gap-2 text-sm bg-white p-3 rounded border border-purple-100">
+                                {/* Scoring Criteria */}
+                                {part.rubricItems && part.rubricItems.length > 0 && (
+                                  <div className="bg-white rounded-lg p-4 border border-purple-200 mb-4">
+                                    <p className="text-sm font-semibold text-purple-900 mb-3">Scoring Criteria:</p>
+                                    <div className="space-y-2">
+                                      {part.rubricItems.map((rubric: any, rIndex: number) => (
+                                        <div key={rIndex} className="flex items-start gap-2">
                                           <CheckCircle className="h-4 w-4 text-green-600 mt-0.5 flex-shrink-0" />
                                           <div className="flex-1">
-                                            <span className="font-medium text-gray-900">
-                                              {item.criterion}
-                                            </span>
-                                            {item.points && (
-                                              <span className="ml-2 text-purple-600 font-semibold">
-                                                ({item.points} {item.points === 1 ? 'point' : 'points'})
-                                              </span>
-                                            )}
-                                            {item.description && (
-                                              <p className="text-gray-600 mt-1">{item.description}</p>
+                                            <p className="text-sm font-medium text-gray-900">
+                                              {rubric.criterion} ({rubric.points} {rubric.points === 1 ? 'point' : 'points'})
+                                            </p>
+                                            {rubric.description && (
+                                              <p className="text-xs text-gray-600 mt-1">{rubric.description}</p>
                                             )}
                                           </div>
                                         </div>
                                       ))}
                                     </div>
-                                  )}
+                                  </div>
+                                )}
 
-                                  {/* Sample Solution (if available) */}
-                                  {part.sampleSolution && (
-                                    <div className="ml-13">
-                                      <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
-                                        <BookOpen className="h-4 w-4 text-indigo-600" />
-                                        Sample Solution:
-                                      </p>
-                                      <SyntaxHighlighter
-                                        language="java"
-                                        customStyle={{ 
-                                          borderRadius: '0.375rem', 
-                                          padding: '0.75rem',
-                                          fontSize: '0.875rem',
-                                        }}
-                                      >
-                                        {part.sampleSolution}
-                                      </SyntaxHighlighter>
-                                    </div>
-                                  )}
-                                </Card>
-                              ))}
-                            </div>
+                                {/* Sample Solution */}
+                                {part.sampleSolution && (
+                                  <div className="mb-4">
+                                    <p className="text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
+                                      <BookOpen className="h-4 w-4 text-indigo-600" />
+                                      Sample Solution:
+                                    </p>
+                                    <SyntaxHighlighter
+                                      language="java"
+                                      style={vscDarkPlus}
+                                      customStyle={{
+                                        borderRadius: '0.5rem',
+                                        padding: '1rem',
+                                        fontSize: '0.875rem',
+                                      }}
+                                    >
+                                      {part.sampleSolution}
+                                    </SyntaxHighlighter>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
                           </div>
+                        ) : (
+                          /* Fallback for questions without parts */
+                          frq.question?.explanation && (
+                            <div className="bg-gray-50 rounded-lg p-4 border-t pt-6">
+                              <h5 className="font-bold text-gray-900 mb-3">Sample Solution:</h5>
+                              <div className="prose max-w-none">
+                                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                  {frq.question.explanation}
+                                </ReactMarkdown>
+                              </div>
+                            </div>
+                          )
                         )}
 
                         {/* Request Review Button */}
                         <Button 
                           onClick={() => handleScheduleReview(index + 1)} 
-                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700" 
+                          className="w-full bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 mt-6" 
                           size="lg"
                         >
                           <Mail className="h-4 w-4 mr-2" />
@@ -467,35 +643,7 @@ ${userEmail}
             </div>
           </Card>
         )}
-
-        {/* Unit Breakdown (if available) */}
-        {results.unitBreakdown && (
-          <Card className="p-6 mb-8">
-            <h3 className="text-xl font-bold mb-4 flex items-center gap-2">
-              <BarChart3 className="h-6 w-6 text-indigo-600" />
-              Performance by Unit
-            </h3>
-            <div className="space-y-3">
-              {Object.entries(results.unitBreakdown).map(([unitName, data]: [string, any]) => (
-                <div key={unitName} className="border rounded-lg p-4">
-                  <div className="flex justify-between items-center mb-2">
-                    <span className="font-semibold">{unitName}</span>
-                    <span className="text-sm text-gray-600">
-                      {data.correct}/{data.total} correct ({((data.correct / data.total) * 100).toFixed(0)}%)
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-200 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-indigo-500 to-purple-600"
-                      style={{ width: `${(data.correct / data.total) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-
+    
         {/* Strengths and Weaknesses */}
         {(results.strengths?.length > 0 || results.weaknesses?.length > 0) && (
           <div className="grid md:grid-cols-2 gap-6 mb-8">
