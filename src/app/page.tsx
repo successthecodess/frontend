@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Code, Target, TrendingUp, Zap, BookOpen, Award, Brain, CheckCircle, LogIn, UserPlus, Sparkles, Star, Clock } from 'lucide-react';
+import { ArrowRight, Code, Target, TrendingUp, Zap, BookOpen, Award, Brain, CheckCircle, LogIn, UserPlus, Sparkles, Star, Clock, Home } from 'lucide-react';
 import Image from 'next/image';
 
 export default function LandingPage() {
@@ -26,16 +26,28 @@ export default function LandingPage() {
               <Link href="/login">
                 <Button variant="ghost" size="sm" className="font-medium text-xs sm:text-sm md:text-base hover:bg-indigo-50 transition-colors px-2 sm:px-3 md:px-4">
                   <LogIn className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5 md:mr-2" />
-                  <span className="hidden xs:inline">Login</span>
+                  <span className="xs:inline">Login</span>
                 </Button>
               </Link>
               <Link href="/signup">
                 <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-xs sm:text-sm md:text-base shadow-md hover:shadow-lg transition-all px-2 sm:px-3 md:px-4">
-                  <UserPlus className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5 md:mr-2" />
-                  <span className="hidden xs:inline">Sign Up</span>
-                  <span className="xs:hidden">Join</span>
+                 
+                  <span className="xs:inline">Sign Up</span>
+                
                 </Button>
               </Link>
+              <div className="flex items-center gap-2 sm:gap-4">
+              <Link href="https://csprep.aceapcomputerscience.com/">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  className="border-2 border-purple-600 text-purple-600 hover:bg-purple-50 font-bold transition-all hover:scale-105 shadow-sm"
+                >
+                  <Home className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Back to </span>Home
+                </Button>
+              </Link>
+            </div>
             </div>
           </div>
         </div>
