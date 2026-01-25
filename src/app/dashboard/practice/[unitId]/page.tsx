@@ -22,9 +22,17 @@ import {
   TrendingUp, 
   GraduationCap, 
   Target, 
-  ArrowRight 
+  ArrowRight,
+  XCircle,
+  ChevronDown,
+  ChevronUp,
+  Eye
 } from 'lucide-react';
 import type { Unit, Question, StudySession, AnswerResult, ProgressMetrics } from '@/types';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 export default function PracticeSessionPage() {
   const params = useParams();
@@ -57,12 +65,46 @@ export default function PracticeSessionPage() {
   const [questionStartTime, setQuestionStartTime] = useState<number>(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
+  // View results states
+  const [showingResults, setShowingResults] = useState(false);
+  const [sessionAnswers, setSessionAnswers] = useState<any[]>([]);
+  const [loadingResults, setLoadingResults] = useState(false);
+  const [expandedQuestions, setExpandedQuestions] = useState<Set<number>>(new Set());
+
   // ============================================
   // PREFETCHING: Store next question in advance
   // ============================================
   const [prefetchedQuestion, setPrefetchedQuestion] = useState<Question | null>(null);
   const [isPrefetching, setIsPrefetching] = useState(false);
   const prefetchAbortRef = useRef<AbortController | null>(null);
+
+  // Markdown components for rendering
+  const markdownComponents = {
+    code: ({node, inline, className, children, ...props}: any) => {
+      const match = /language-(\w+)/.exec(className || '');
+      return !inline && match ? (
+        <SyntaxHighlighter
+          style={vscDarkPlus}
+          language={match[1]}
+          PreTag="div"
+          customStyle={{
+            borderRadius: '0.5rem',
+            padding: '1rem',
+            fontSize: '0.875rem',
+            marginTop: '0.5rem',
+            marginBottom: '0.5rem',
+          }}
+          {...props}
+        >
+          {String(children).replace(/\n$/, '')}
+        </SyntaxHighlighter>
+      ) : (
+        <code className="bg-gray-100 px-1.5 py-0.5 rounded text-sm font-mono text-gray-800" {...props}>
+          {children}
+        </code>
+      );
+    },
+  };
 
   // Check access first
   useEffect(() => {
@@ -527,6 +569,42 @@ export default function PracticeSessionPage() {
     }
   };
 
+  // NEW: Load session answers for review
+  const handleViewResults = async () => {
+    if (!session) return;
+
+    try {
+      setLoadingResults(true);
+      console.log('📋 Loading session answers for review...');
+      
+      const response = await api.getSessionAnswers(session.id);
+      
+      console.log('✅ Session answers loaded:', response.data.answers.length);
+      setSessionAnswers(response.data.answers);
+      setShowingResults(true);
+    } catch (error: any) {
+      console.error('Failed to load session answers:', error);
+      setError(
+        error.message || 
+        'Failed to load session results. Please try again.'
+      );
+    } finally {
+      setLoadingResults(false);
+    }
+  };
+
+  const toggleQuestion = (index: number) => {
+    setExpandedQuestions(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(index)) {
+        newSet.delete(index);
+      } else {
+        newSet.add(index);
+      }
+      return newSet;
+    });
+  };
+
   const handleReturnToDashboard = () => {
     router.push('/dashboard');
   };
@@ -540,6 +618,8 @@ export default function PracticeSessionPage() {
     setLoading(true);
     setSessionSummary(null);
     setPrefetchedQuestion(null);
+    setShowingResults(false);
+    setSessionAnswers([]);
     localStorage.removeItem(`session_${unitId}`);
     localStorage.removeItem(`sessionData_${unitId}`);
     window.location.reload();
@@ -711,6 +791,192 @@ export default function PracticeSessionPage() {
     );
   }
 
+  // NEW: Show results view
+  if (showingResults) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto max-w-6xl px-4">
+          {/* Header */}
+          <div className="mb-6 flex items-center justify-between">
+            <div>
+              <h1 className="text-3xl font-bold text-gray-900">Session Review</h1>
+              <p className="mt-1 text-gray-600">
+                Review all {sessionAnswers.length} questions from your practice session
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setShowingResults(false)}
+            >
+              Back to Summary
+            </Button>
+          </div>
+
+          {/* Summary Stats */}
+          <Card className="p-6 mb-6">
+            <div className="grid grid-cols-3 gap-6">
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <CheckCircle className="h-6 w-6 text-green-600" />
+                  <p className="text-3xl font-bold text-green-600">
+                    {sessionAnswers.filter(a => a.isCorrect).length}
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600">Correct</p>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <XCircle className="h-6 w-6 text-red-600" />
+                  <p className="text-3xl font-bold text-red-600">
+                    {sessionAnswers.filter(a => !a.isCorrect).length}
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600">Incorrect</p>
+              </div>
+              <div className="text-center">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  <Target className="h-6 w-6 text-indigo-600" />
+                  <p className="text-3xl font-bold text-indigo-600">
+                    {((sessionAnswers.filter(a => a.isCorrect).length / sessionAnswers.length) * 100).toFixed(0)}%
+                  </p>
+                </div>
+                <p className="text-sm text-gray-600">Accuracy</p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Questions List */}
+          <div className="space-y-4">
+            {sessionAnswers.map((answer, index) => (
+              <Card key={answer.id} className="overflow-hidden">
+                <button
+                  onClick={() => toggleQuestion(index)}
+                  className="w-full p-6 text-left hover:bg-gray-50 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                        answer.isCorrect ? 'bg-green-100' : 'bg-red-100'
+                      }`}>
+                        {answer.isCorrect ? (
+                          <CheckCircle className="h-6 w-6 text-green-600" />
+                        ) : (
+                          <XCircle className="h-6 w-6 text-red-600" />
+                        )}
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-1">
+                          <p className="font-semibold text-gray-900">Question {index + 1}</p>
+                          <span className={`px-2 py-1 rounded text-xs font-medium ${
+                            answer.question.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
+                            answer.question.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                            'bg-red-100 text-red-800'
+                          }`}>
+                            {answer.question.difficulty}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-600 line-clamp-1">
+                          {answer.question.questionText}
+                        </p>
+                      </div>
+                    </div>
+                    {expandedQuestions.has(index) ? (
+                      <ChevronUp className="h-5 w-5 text-gray-400" />
+                    ) : (
+                      <ChevronDown className="h-5 w-5 text-gray-400" />
+                    )}
+                  </div>
+                </button>
+
+                {expandedQuestions.has(index) && (
+                  <div className="border-t bg-gray-50 p-6">
+                    {/* Question Text */}
+                    <div className="mb-6">
+                      <h4 className="font-semibold text-gray-900 mb-3">Question:</h4>
+                      <div className="prose max-w-none">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          {answer.question.questionText}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+
+                    {/* Options */}
+                    <div className="space-y-3 mb-6">
+                      {answer.question.options.map((option: string, optIndex: number) => {
+                        const letter = String.fromCharCode(65 + optIndex);
+                        const isCorrect = answer.question.correctAnswer === letter;
+                        const isUserAnswer = answer.userAnswer === letter;
+
+                        return (
+                          <div
+                            key={letter}
+                            className={`p-4 rounded-lg border-2 ${
+                              isCorrect
+                                ? 'border-green-500 bg-green-50'
+                                : isUserAnswer
+                                ? 'border-red-500 bg-red-50'
+                                : 'border-gray-300'
+                            }`}
+                          >
+                            <div className="flex items-start gap-3">
+                              <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-semibold ${
+                                isCorrect
+                                  ? 'bg-green-600 text-white'
+                                  : isUserAnswer
+                                  ? 'bg-red-600 text-white'
+                                  : 'bg-gray-100 text-gray-600'
+                              }`}>
+                                {letter}
+                              </div>
+                              <div className="flex-1">
+                                <div className="prose max-w-none">
+                                  <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                    {option}
+                                  </ReactMarkdown>
+                                </div>
+                                {isCorrect && (
+                                  <p className="text-sm text-green-700 font-semibold mt-2 flex items-center gap-1">
+                                    <CheckCircle className="h-4 w-4" />
+                                    Correct Answer
+                                  </p>
+                                )}
+                                {isUserAnswer && !isCorrect && (
+                                  <p className="text-sm text-red-700 font-semibold mt-2 flex items-center gap-1">
+                                    <XCircle className="h-4 w-4" />
+                                    Your Answer
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Explanation */}
+                    {answer.question.explanation && (
+                      <div className="bg-blue-50 border-2 border-blue-200 rounded-lg p-6">
+                        <h4 className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                          <Eye className="h-5 w-5" />
+                          Explanation:
+                        </h4>
+                        <div className="prose max-w-none text-blue-900">
+                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                            {answer.question.explanation}
+                          </ReactMarkdown>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </Card>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!currentQuestion) {
     return <LoadingState message="Loading question..." fullScreen />;
   }
@@ -837,6 +1103,30 @@ export default function PracticeSessionPage() {
               targetQuestions={targetQuestions}
             />
             <LearningInsightsCard progress={progress || undefined} />
+            
+            {/* NEW: View Results Button */}
+            {session && session.totalQuestions > 0 && (
+              <Card className="p-4">
+                <Button
+                  onClick={handleViewResults}
+                  disabled={loadingResults}
+                  className="w-full"
+                  variant="outline"
+                >
+                  {loadingResults ? (
+                    <>
+                      <div className="animate-spin h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full mr-2" />
+                      Loading...
+                    </>
+                  ) : (
+                    <>
+                      <Eye className="h-4 w-4 mr-2" />
+                      View All Answers
+                    </>
+                  )}
+                </Button>
+              </Card>
+            )}
           </div>
         </div>
       </div>

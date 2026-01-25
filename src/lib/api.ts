@@ -384,7 +384,10 @@ async getNextQuestion(
       'createQuestion'
     );
   },
-
+async getSessionAnswers(sessionId: string) {
+  const url = `${API_BASE_URL}/practice/session/${sessionId}/answers`;
+  return handleResponse(url, { headers: getAuthHeaders() }, 'getSessionAnswers');
+},
   async updateQuestion(questionId: string, data: any) {
     const url = `${API_BASE_URL}/admin/questions/${questionId}`;
     return handleResponse(
