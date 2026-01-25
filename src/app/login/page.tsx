@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Code, Mail, Loader2, CheckCircle } from 'lucide-react';
+import { Code, Mail, Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Suspense } from 'react';
 
 function LoginForm() {
@@ -15,6 +15,7 @@ function LoginForm() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [notAuthorized, setNotAuthorized] = useState(false);
 
   useEffect(() => {
     const emailParam = searchParams.get('email');
@@ -27,6 +28,7 @@ function LoginForm() {
     e.preventDefault();
     setError('');
     setLoading(true);
+    setNotAuthorized(false);
 
     try {
       const response = await fetch(
@@ -41,9 +43,16 @@ function LoginForm() {
       const data = await response.json();
 
       if (!response.ok) {
+        // Check if it's a system configuration error
+        if (response.status === 400 || response.status === 401) {
+          throw new Error(data.error || 'System configuration error');
+        }
         throw new Error(data.error || 'Request failed');
       }
 
+      // IMPORTANT: Backend returns success even if email not found (for security)
+      // But we still show the "check email" message
+      // If email doesn't exist in TutorBoss, they won't receive an email
       setEmailSent(true);
       
     } catch (err: any) {
@@ -53,6 +62,7 @@ function LoginForm() {
     }
   };
 
+  // Email sent success state
   if (emailSent) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
@@ -65,29 +75,55 @@ function LoginForm() {
             <p className="text-gray-600 mb-6">
               We've sent a secure login link to <strong>{email}</strong>
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+            
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
               <p className="text-sm text-blue-800">
                 📧 Click the link in your email to log in securely.
                 <br />
                 ⏰ The link expires in 15 minutes.
               </p>
             </div>
-            <Button
-              onClick={() => {
-                setEmailSent(false);
-                setLoading(false);
-              }}
-              variant="outline"
-              className="w-full"
-            >
-              Resend Link
-            </Button>
+
+            {/* Warning about authorization */}
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="text-left">
+                  <p className="text-sm text-yellow-800 font-semibold mb-1">
+                    Not receiving the email?
+                  </p>
+                  <p className="text-xs text-yellow-700">
+                    If you don't receive an email within a few minutes, your account may not be registered with us yet. Please use the <strong>Sign Up</strong> option below to create an account.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <Button
+                onClick={() => {
+                  setEmailSent(false);
+                  setLoading(false);
+                }}
+                variant="outline"
+                className="w-full"
+              >
+                Try Different Email
+              </Button>
+              
+              <Link href="/signup" className="block">
+                <Button variant="default" className="w-full">
+                  Create New Account Instead
+                </Button>
+              </Link>
+            </div>
           </div>
         </Card>
       </div>
     );
   }
 
+  // Main login form
   return (
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-6 sm:p-8">
@@ -102,8 +138,14 @@ function LoginForm() {
         </div>
 
         {error && (
-          <div className="mb-4 p-3 rounded-lg bg-red-50 border border-red-200">
-            <p className="text-sm text-red-700">{error}</p>
+          <div className="mb-4 p-4 rounded-lg bg-red-50 border border-red-200">
+            <div className="flex items-start gap-3">
+              <XCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-semibold text-red-800 mb-1">Login Failed</p>
+                <p className="text-sm text-red-700">{error}</p>
+              </div>
+            </div>
           </div>
         )}
 
@@ -132,6 +174,12 @@ function LoginForm() {
             </p>
           </div>
 
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+            <p className="text-xs text-amber-800">
+              ⚠️ <strong>Existing Students Only:</strong> This login is for students already registered in our system. If you're new, please sign up below.
+            </p>
+          </div>
+
           <Button
             type="submit"
             className="w-full"
@@ -152,28 +200,8 @@ function LoginForm() {
           </Button>
         </form>
 
-        <div className="mt-6">
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">or</span>
-            </div>
-          </div>
-
-          <div className="mt-6 text-center">
-            <p className="text-xs sm:text-sm text-gray-600">
-              Don't have an account?{' '}
-              <Link
-                href="/signup"
-                className="font-medium text-indigo-600 hover:text-indigo-700"
-              >
-                Create one now
-              </Link>
-            </p>
-          </div>
-        </div>
+  
+       
       </Card>
     </div>
   );
