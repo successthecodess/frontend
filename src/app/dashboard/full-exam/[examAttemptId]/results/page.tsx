@@ -463,6 +463,27 @@ ${userEmail}
             </div>
           </div>
         </Card>
+       
+{/* MCQ Review Button */}
+<Card className="p-6 mb-8 bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
+  <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+    <div className="flex items-center gap-4">
+      <FileText className="h-12 w-12" />
+      <div>
+        <h4 className="text-xl font-bold">Review All MCQ Questions</h4>
+        <p className="text-white/90">See your answers, correct answers, and detailed explanations for all 42 questions</p>
+      </div>
+    </div>
+    <Button
+      onClick={() => router.push(`/dashboard/full-exam/${examAttemptId}/review`)}
+      size="lg"
+      className="bg-white text-blue-600 hover:bg-gray-100"
+    >
+      <BookOpen className="h-5 w-5 mr-2" />
+      Review MCQ Questions
+    </Button>
+  </div>
+</Card>
 
         {/* FRQ Section with Rubrics - MERGED FROM ADMIN VIEW */}
         {results.frqDetails && results.frqDetails.length > 0 && (
