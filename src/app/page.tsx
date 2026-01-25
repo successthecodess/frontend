@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, Code, Target, TrendingUp, Zap, BookOpen, Award, Brain, CheckCircle, LogIn, UserPlus, Sparkles, Star, Clock, Home } from 'lucide-react';
+import { ArrowRight, Code, Target, TrendingUp, Zap, BookOpen, Award, Brain, CheckCircle, LogIn, UserPlus, Sparkles, Star, Clock, Home, DollarSign } from 'lucide-react';
 import Image from 'next/image';
 
 export default function LandingPage() {
@@ -23,6 +23,12 @@ export default function LandingPage() {
               </span>
             </Link>
             <div className="flex gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
+              <Link href="/pricing">
+                <Button variant="ghost" size="sm" className="font-medium text-xs sm:text-sm md:text-base hover:bg-purple-50 transition-colors px-2 sm:px-3 md:px-4">
+                  <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5 md:mr-2" />
+                  <span className="hidden sm:inline">Pricing</span>
+                </Button>
+              </Link>
               <Link href="/login">
                 <Button variant="ghost" size="sm" className="font-medium text-xs sm:text-sm md:text-base hover:bg-indigo-50 transition-colors px-2 sm:px-3 md:px-4">
                   <LogIn className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5 md:mr-2" />
@@ -31,12 +37,9 @@ export default function LandingPage() {
               </Link>
               <Link href="/signup">
                 <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-xs sm:text-sm md:text-base shadow-md hover:shadow-lg transition-all px-2 sm:px-3 md:px-4">
-                 
                   <span className="xs:inline">Sign Up</span>
-                
                 </Button>
               </Link>
-              <div className="flex items-center gap-2 sm:gap-4">
               <Link href="https://csprep.aceapcomputerscience.com/">
                 <Button 
                   variant="outline" 
@@ -47,7 +50,6 @@ export default function LandingPage() {
                   <span className="hidden sm:inline">Back to </span>Home
                 </Button>
               </Link>
-            </div>
             </div>
           </div>
         </div>
@@ -223,6 +225,25 @@ export default function LandingPage() {
               description="See your mastery increase with every session. Build learning streaks. Unlock achievements. Ace the AP exam with confidence."
               icon={<TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 text-white" />}
             />
+          </div>
+        </div>
+
+        {/* Pricing Teaser Section */}
+        <div className="py-10 sm:py-12 md:py-16 lg:py-20 px-3 sm:px-4">
+          <div className="text-center mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-black text-gray-900 mb-3 sm:mb-4 md:mb-6 px-2">
+              Simple, <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Affordable</span> Pricing
+            </h2>
+            <p className="text-sm sm:text-base md:text-lg lg:text-xl text-gray-600 max-w-2xl mx-auto px-3 mb-6">
+              Choose the plan that fits your learning goals
+            </p>
+            <Link href="/pricing">
+              <Button size="lg" variant="outline" className="border-2 border-indigo-600 text-indigo-600 hover:bg-indigo-50 shadow-md hover:shadow-lg transition-all">
+                <DollarSign className="mr-2 h-5 w-5" />
+                View Full Pricing Details
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+            </Link>
           </div>
         </div>
 

@@ -339,7 +339,7 @@ export default function PricingPage() {
             <Card className="p-6 border-l-4 border-indigo-500">
               <h3 className="font-bold text-gray-900 mb-2 text-lg">Can I cancel anytime?</h3>
               <p className="text-gray-600">
-                Yes! You can cancel your subscription at any time and you will receive the amount back prorated. 
+                Yes! You can cancel your subscription at any time. 
               </p>
             </Card>
             <Card className="p-6 border-l-4 border-purple-500">
