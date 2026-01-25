@@ -489,7 +489,17 @@ Instructor`
                         </div>
                       </div>
                     )}
-
+ {/* Correct Answer */}
+          <div className="p-4 rounded-lg border-2 border-green-500 bg-green-50">
+            <p className="text-xs font-semibold text-gray-600 mb-1">Correct Answer:</p>
+            <div className="flex items-center gap-2">
+             
+                {mcq.question.correctAnswer}
+             
+           {/* //   <span className="text-sm font-semibold text-green-700">✓ This is correct</span> */}
+            </div>
+          </div>
+        
                     {mcq.timeSpent && (
                       <div className="border-t pt-4 mt-4">
                         <p className="text-sm text-gray-600">
