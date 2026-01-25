@@ -18,6 +18,8 @@ import {
   Shield,
   Infinity,
 } from 'lucide-react';
+import { StripeBuyButton } from '@/components/StripeBuyButton';
+import React from 'react';
 
 export default function PricingPage() {
   const router = useRouter();
@@ -228,14 +230,17 @@ export default function PricingPage() {
                 </div>
               ))}
             </div>
-
+{React.createElement('stripe-buy-button', {
+  'buy-button-id': 'buy_btn_1StXYvLjtL6H5DDg3ru4FMwU',
+  'publishable-key': 'pk_live_51OmqHSLjtL6H5DDguApXwAGi7o73Y5cSCDGpb8P1d7kSoX4Z7dulkmAlgUKU9rKbx5Y8YGT8PCkz4okdHkmPfBsc00jBA1WCs4'
+})}
             {/* Stripe Buy Button */}
-            <div className="stripe-buy-button-container mb-6">
-              <stripe-buy-button
+            {/* <div className="stripe-buy-button-container mb-6">
+              <StripeBuyButton
                 buy-button-id="buy_btn_1StXYvLjtL6H5DDg3ru4FMwU"
                 publishable-key="pk_live_51OmqHSLjtL6H5DDguApXwAGi7o73Y5cSCDGpb8P1d7kSoX4Z7dulkmAlgUKU9rKbx5Y8YGT8PCkz4okdHkmPfBsc00jBA1WCs4"
               />
-            </div>
+            </div> */}
 
             {/* Trust Badges */}
             <div className="flex items-center justify-center gap-6 text-sm text-gray-600 flex-wrap">
