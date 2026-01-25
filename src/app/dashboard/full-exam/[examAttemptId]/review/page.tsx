@@ -15,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   AlertCircle,
+  Inbox,
 } from 'lucide-react';
 import { examApi } from '@/lib/examApi';
 import ReactMarkdown from 'react-markdown';
@@ -94,12 +95,44 @@ export default function MCQReviewPage() {
     return true;
   });
 
-  const currentQuestion = filteredQuestions[selectedMCQ];
-  const actualIndex = examAttempt.mcqResponses.indexOf(currentQuestion);
-
   const mcqCorrect = examAttempt.mcqResponses.filter((r: any) => r.isCorrect).length;
   const mcqIncorrect = examAttempt.mcqResponses.filter((r: any) => !r.isCorrect && r.userAnswer).length;
   const mcqUnanswered = examAttempt.mcqResponses.filter((r: any) => !r.userAnswer).length;
+
+  const getFilterLabel = (filterType: typeof filter) => {
+    switch (filterType) {
+      case 'all': return 'All Questions';
+      case 'correct': return 'Correct Answers';
+      case 'incorrect': return 'Incorrect Answers';
+      case 'unanswered': return 'Unanswered Questions';
+    }
+  };
+
+  const getEmptyMessage = () => {
+    switch (filter) {
+      case 'correct':
+        return mcqCorrect === 0 
+          ? "You didn't get any questions correct in this exam. Review the explanations to improve!"
+          : "No correct answers found.";
+      case 'incorrect':
+        return mcqIncorrect === 0
+          ? "Great job! You didn't get any questions wrong."
+          : "No incorrect answers found.";
+      case 'unanswered':
+        return mcqUnanswered === 0
+          ? "Excellent! You answered all questions in this exam."
+          : "No unanswered questions found.";
+      default:
+        return "No questions found.";
+    }
+  };
+
+  // Show empty state if no filtered results
+  const showEmptyState = filteredQuestions.length === 0;
+
+  // Get current question safely
+  const currentQuestion = showEmptyState ? null : filteredQuestions[selectedMCQ];
+  const actualIndex = currentQuestion ? examAttempt.mcqResponses.indexOf(currentQuestion) : -1;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -211,253 +244,269 @@ export default function MCQReviewPage() {
           </div>
         </Card>
 
-        <div className="grid lg:grid-cols-4 gap-6">
-          {/* Question Navigator */}
-          <Card className="p-4 h-fit sticky top-4">
-            <h3 className="font-semibold text-gray-900 mb-4">
-              Questions ({filteredQuestions.length})
+        {/* Empty State OR Question Review */}
+        {showEmptyState ? (
+          <Card className="p-12 text-center">
+            <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <Inbox className="h-10 w-10 text-gray-400" />
+            </div>
+            <h3 className="text-xl font-bold text-gray-900 mb-2">
+              No {getFilterLabel(filter)} Found
             </h3>
-            <div className="grid grid-cols-7 gap-2 max-h-[600px] overflow-y-auto">
-              {filteredQuestions.map((mcq: any, index: number) => {
-                const originalIndex = examAttempt.mcqResponses.indexOf(mcq);
-                return (
-                  <button
-                    key={mcq.id}
-                    onClick={() => setSelectedMCQ(index)}
-                    className={`w-10 h-10 rounded flex items-center justify-center text-sm font-semibold transition-all ${
-                      index === selectedMCQ
-                        ? 'bg-indigo-600 text-white ring-2 ring-indigo-600 ring-offset-2'
-                        : mcq.flaggedForReview
-                        ? 'bg-yellow-100 text-yellow-800 border-2 border-yellow-500'
-                        : mcq.isCorrect
-                        ? 'bg-green-100 text-green-800'
-                        : mcq.userAnswer
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-gray-100 text-gray-600'
-                    }`}
-                  >
-                    {originalIndex + 1}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-4 pt-4 border-t space-y-2 text-xs">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-indigo-600 rounded"></div>
-                <span>Current</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-green-100 border border-green-500 rounded"></div>
-                <span>Correct</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-red-100 border border-red-500 rounded"></div>
-                <span>Incorrect</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-gray-100 rounded"></div>
-                <span>Unanswered</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 bg-yellow-100 border-2 border-yellow-500 rounded"></div>
-                <span>Flagged</span>
-              </div>
-            </div>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              {getEmptyMessage()}
+            </p>
+            <Button
+              onClick={() => {
+                setFilter('all');
+                setSelectedMCQ(0);
+              }}
+            >
+              View All Questions
+            </Button>
           </Card>
-
-          {/* Question Detail */}
-          <Card className="p-6 lg:col-span-3">
-            <div className="flex items-center justify-between mb-6">
-              <div>
-                <h3 className="text-xl font-bold text-gray-900">
-                  Question {actualIndex + 1}
-                </h3>
-                <p className="text-sm text-gray-600">
-                  Unit {currentQuestion.question.unit?.unitNumber}: {currentQuestion.question.unit?.name}
-                </p>
+        ) : (
+          <div className="grid lg:grid-cols-4 gap-6">
+            {/* Question Navigator */}
+            <Card className="p-4 h-fit sticky top-4">
+              <h3 className="font-semibold text-gray-900 mb-4">
+                Questions ({filteredQuestions.length})
+              </h3>
+              <div className="grid grid-cols-7 gap-2 max-h-[600px] overflow-y-auto">
+                {filteredQuestions.map((mcq: any, index: number) => {
+                  const originalIndex = examAttempt.mcqResponses.indexOf(mcq);
+                  return (
+                    <button
+                      key={mcq.id}
+                      onClick={() => setSelectedMCQ(index)}
+                      className={`w-10 h-10 rounded flex items-center justify-center text-sm font-semibold transition-all ${
+                        index === selectedMCQ
+                          ? 'bg-indigo-600 text-white ring-2 ring-indigo-600 ring-offset-2'
+                          : mcq.flaggedForReview
+                          ? 'bg-yellow-100 text-yellow-800 border-2 border-yellow-500'
+                          : mcq.isCorrect
+                          ? 'bg-green-100 text-green-800'
+                          : mcq.userAnswer
+                          ? 'bg-red-100 text-red-800'
+                          : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {originalIndex + 1}
+                    </button>
+                  );
+                })}
               </div>
-              <div className="flex items-center gap-2">
-                {currentQuestion.flaggedForReview && (
-                  <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-semibold flex items-center gap-1">
-                    <Flag className="h-3 w-3" />
-                    Flagged
-                  </span>
-                )}
-                <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
-                  currentQuestion.isCorrect
-                    ? 'bg-green-100 text-green-800'
-                    : currentQuestion.userAnswer
-                    ? 'bg-red-100 text-red-800'
-                    : 'bg-gray-100 text-gray-800'
-                }`}>
-                  {currentQuestion.isCorrect ? '✓ Correct' : currentQuestion.userAnswer ? '✗ Incorrect' : 'Not Answered'}
-                </span>
-              </div>
-            </div>
 
-            {/* Unanswered Alert */}
-            {!currentQuestion.userAnswer && (
-              <div className="mb-6 bg-gray-100 border-2 border-gray-400 rounded-lg p-4">
-                <div className="flex items-center gap-3">
-                  <AlertCircle className="h-6 w-6 text-gray-600 flex-shrink-0" />
-                  <div>
-                    <p className="font-bold text-gray-900">This question was not answered</p>
-                    <p className="text-sm text-gray-700">The correct answer is highlighted in green below</p>
-                  </div>
+              <div className="mt-4 pt-4 border-t space-y-2 text-xs">
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-indigo-600 rounded"></div>
+                  <span>Current</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-green-100 border border-green-500 rounded"></div>
+                  <span>Correct</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-red-100 border border-red-500 rounded"></div>
+                  <span>Incorrect</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-gray-100 rounded"></div>
+                  <span>Unanswered</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-4 h-4 bg-yellow-100 border-2 border-yellow-500 rounded"></div>
+                  <span>Flagged</span>
                 </div>
               </div>
-            )}
+            </Card>
 
-            {/* Question Text */}
-            <div className="mb-6 bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
-              <div className="prose max-w-none">
-                <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                  {currentQuestion.question.questionText}
-                </ReactMarkdown>
-              </div>
-            </div>
+            {/* Question Detail */}
+            {currentQuestion && (
+              <Card className="p-6 lg:col-span-3">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-xl font-bold text-gray-900">
+                      Question {actualIndex + 1}
+                    </h3>
+                    <p className="text-sm text-gray-600">
+                      Unit {currentQuestion.question.unit?.unitNumber}: {currentQuestion.question.unit?.name}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {currentQuestion.flaggedForReview && (
+                      <span className="px-3 py-1 bg-yellow-100 text-yellow-800 rounded-full text-sm font-semibold flex items-center gap-1">
+                        <Flag className="h-3 w-3" />
+                        Flagged
+                      </span>
+                    )}
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                      currentQuestion.isCorrect
+                        ? 'bg-green-100 text-green-800'
+                        : currentQuestion.userAnswer
+                        ? 'bg-red-100 text-red-800'
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {currentQuestion.isCorrect ? '✓ Correct' : currentQuestion.userAnswer ? '✗ Incorrect' : 'Not Answered'}
+                    </span>
+                  </div>
+                </div>
 
-            {/* Answer Options - CHECKBOX STYLE WITH HIGHLIGHTING */}
-            <div className="space-y-3 mb-6">
-              {currentQuestion.question.options?.map((option: string, index: number) => {
-                const letter = String.fromCharCode(65 + index);
-                const isUserAnswer = currentQuestion.userAnswer === letter;
-                const isCorrectAnswer = currentQuestion.question.correctAnswer === letter;
-
-                return (
-                  <div
-                    key={letter}
-                    className={`p-4 rounded-lg border-2 transition-all relative ${
-                      // ALWAYS highlight correct answer in green - like a selected checkbox
-                      isCorrectAnswer
-                        ? 'border-green-600 bg-green-50 shadow-lg ring-2 ring-green-300'
-                        // Show user's wrong answer in red - also highlighted like selected
-                        : isUserAnswer && !isCorrectAnswer
-                        ? 'border-red-600 bg-red-50 shadow-lg ring-2 ring-red-300'
-                        // Other options neutral
-                        : 'border-gray-300 bg-white'
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      {/* Checkbox-style indicator */}
-                      <div className={`flex-shrink-0 w-8 h-8 rounded-md border-2 flex items-center justify-center font-bold text-lg ${
-                        isCorrectAnswer
-                          ? 'bg-green-600 border-green-700 text-white'
-                          : isUserAnswer && !isCorrectAnswer
-                          ? 'bg-red-600 border-red-700 text-white'
-                          : 'bg-gray-100 border-gray-300 text-gray-600'
-                      }`}>
-                        {isCorrectAnswer || (isUserAnswer && !isCorrectAnswer) ? '✓' : letter}
-                      </div>
-                      
-                      <div className="flex-1">
-                        <div className="prose max-w-none">
-                          <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                            {option}
-                          </ReactMarkdown>
-                        </div>
-                        
-                        {/* ALWAYS show correct answer label */}
-                        {isCorrectAnswer && (
-                          <div className="mt-3 flex items-center gap-2 bg-green-100 rounded-md px-3 py-2 border border-green-300">
-                            <CheckCircle className="h-5 w-5 text-green-700" />
-                            <p className="text-sm text-green-800 font-bold">
-                              ✓ CORRECT ANSWER
-                            </p>
-                          </div>
-                        )}
-                        
-                        {/* Show user's incorrect answer */}
-                        {isUserAnswer && !isCorrectAnswer && (
-                          <div className="mt-3 flex items-center gap-2 bg-red-100 rounded-md px-3 py-2 border border-red-300">
-                            <XCircle className="h-5 w-5 text-red-700" />
-                            <p className="text-sm text-red-800 font-bold">
-                              ✗ YOUR ANSWER (Incorrect)
-                            </p>
-                          </div>
-                        )}
-
-                        {/* Show if user got it right */}
-                        {isUserAnswer && isCorrectAnswer && (
-                          <div className="mt-3 flex items-center gap-2 bg-green-100 rounded-md px-3 py-2 border border-green-300">
-                            <CheckCircle className="h-5 w-5 text-green-700" />
-                            <p className="text-sm text-green-800 font-bold">
-                              ✓ YOUR ANSWER - Well done!
-                            </p>
-                          </div>
-                        )}
+                {/* Unanswered Alert */}
+                {!currentQuestion.userAnswer && (
+                  <div className="mb-6 bg-gray-100 border-2 border-gray-400 rounded-lg p-4">
+                    <div className="flex items-center gap-3">
+                      <AlertCircle className="h-6 w-6 text-gray-600 flex-shrink-0" />
+                      <div>
+                        <p className="font-bold text-gray-900">This question was not answered</p>
+                        <p className="text-sm text-gray-700">The correct answer is highlighted in green below</p>
                       </div>
                     </div>
                   </div>
-                );
-              })}
-            </div>
+                )}
 
-            {/* Correct Answer Display */}
-            <div className="mb-6 bg-green-50 border-2 border-green-300 rounded-lg p-4">
-              <div className="flex items-center gap-2">
-                <CheckCircle className="h-5 w-5 text-green-700 flex-shrink-0" />
-                <p className="text-sm font-bold text-green-900">
-                  Correct Answer: <span className="text-green-700 text-lg">{currentQuestion.question.correctAnswer}</span>
-                </p>
-              </div>
-            </div>
-
-            {/* Explanation */}
-            {currentQuestion.question.explanation && (
-              <div className="border-t-2 pt-6">
-                <div className="flex items-center gap-2 mb-3">
-                  <BookOpen className="h-5 w-5 text-indigo-600" />
-                  <h4 className="font-bold text-gray-900 text-lg">Explanation:</h4>
-                </div>
-                <div className="bg-indigo-50 rounded-lg p-4 border-2 border-indigo-200">
-                  <div className="prose max-w-none text-gray-700">
+                {/* Question Text */}
+                <div className="mb-6 bg-gray-50 rounded-lg p-4 border-2 border-gray-200">
+                  <div className="prose max-w-none">
                     <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
-                      {currentQuestion.question.explanation}
+                      {currentQuestion.question.questionText}
                     </ReactMarkdown>
                   </div>
                 </div>
-                
-               
-              </div>
+
+                {/* Answer Options */}
+                <div className="space-y-3 mb-6">
+                  {currentQuestion.question.options?.map((option: string, index: number) => {
+                    const letter = String.fromCharCode(65 + index);
+                    const isUserAnswer = currentQuestion.userAnswer === letter;
+                    const isCorrectAnswer = currentQuestion.question.correctAnswer === letter;
+
+                    return (
+                      <div
+                        key={letter}
+                        className={`p-4 rounded-lg border-2 transition-all relative ${
+                          isCorrectAnswer
+                            ? 'border-green-600 bg-green-50 shadow-lg ring-2 ring-green-300'
+                            : isUserAnswer && !isCorrectAnswer
+                            ? 'border-red-600 bg-red-50 shadow-lg ring-2 ring-red-300'
+                            : 'border-gray-300 bg-white'
+                        }`}
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`flex-shrink-0 w-8 h-8 rounded-md border-2 flex items-center justify-center font-bold text-lg ${
+                            isCorrectAnswer
+                              ? 'bg-green-600 border-green-700 text-white'
+                              : isUserAnswer && !isCorrectAnswer
+                              ? 'bg-red-600 border-red-700 text-white'
+                              : 'bg-gray-100 border-gray-300 text-gray-600'
+                          }`}>
+                            {isCorrectAnswer || (isUserAnswer && !isCorrectAnswer) ? '✓' : letter}
+                          </div>
+                          
+                          <div className="flex-1">
+                            <div className="prose max-w-none">
+                              <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                                {option}
+                              </ReactMarkdown>
+                            </div>
+                            
+                            {isCorrectAnswer && (
+                              <div className="mt-3 flex items-center gap-2 bg-green-100 rounded-md px-3 py-2 border border-green-300">
+                                <CheckCircle className="h-5 w-5 text-green-700" />
+                                <p className="text-sm text-green-800 font-bold">
+                                  ✓ CORRECT ANSWER
+                                </p>
+                              </div>
+                            )}
+                            
+                            {isUserAnswer && !isCorrectAnswer && (
+                              <div className="mt-3 flex items-center gap-2 bg-red-100 rounded-md px-3 py-2 border border-red-300">
+                                <XCircle className="h-5 w-5 text-red-700" />
+                                <p className="text-sm text-red-800 font-bold">
+                                  ✗ YOUR ANSWER (Incorrect)
+                                </p>
+                              </div>
+                            )}
+
+                            {isUserAnswer && isCorrectAnswer && (
+                              <div className="mt-3 flex items-center gap-2 bg-green-100 rounded-md px-3 py-2 border border-green-300">
+                                <CheckCircle className="h-5 w-5 text-green-700" />
+                                <p className="text-sm text-green-800 font-bold">
+                                  ✓ YOUR ANSWER - Well done!
+                                </p>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Correct Answer Display */}
+                <div className="mb-6 bg-green-50 border-2 border-green-300 rounded-lg p-4">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle className="h-5 w-5 text-green-700 flex-shrink-0" />
+                    <p className="text-sm font-bold text-green-900">
+                      Correct Answer: <span className="text-green-700 text-lg">{currentQuestion.question.correctAnswer}</span>
+                    </p>
+                  </div>
+                </div>
+
+                {/* Explanation */}
+                {currentQuestion.question.explanation && (
+                  <div className="border-t-2 pt-6">
+                    <div className="flex items-center gap-2 mb-3">
+                      <BookOpen className="h-5 w-5 text-indigo-600" />
+                      <h4 className="font-bold text-gray-900 text-lg">Explanation:</h4>
+                    </div>
+                    <div className="bg-indigo-50 rounded-lg p-4 border-2 border-indigo-200">
+                      <div className="prose max-w-none text-gray-700">
+                        <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
+                          {currentQuestion.question.explanation}
+                        </ReactMarkdown>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Time Spent */}
+                {currentQuestion.timeSpent && (
+                  <div className="border-t pt-4 mt-6">
+                    <p className="text-sm text-gray-600">
+                      Time spent: {Math.floor(currentQuestion.timeSpent / 60)}m {currentQuestion.timeSpent % 60}s
+                    </p>
+                  </div>
+                )}
+
+                {/* Navigation */}
+                <div className="flex items-center justify-between mt-8 pt-6 border-t-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedMCQ(Math.max(0, selectedMCQ - 1))}
+                    disabled={selectedMCQ === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-2" />
+                    Previous
+                  </Button>
+
+                  <div className="text-sm text-gray-600 font-medium">
+                    Question {selectedMCQ + 1} of {filteredQuestions.length}
+                  </div>
+
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectedMCQ(Math.min(filteredQuestions.length - 1, selectedMCQ + 1))}
+                    disabled={selectedMCQ === filteredQuestions.length - 1}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </Card>
             )}
-
-            {/* Time Spent */}
-            {currentQuestion.timeSpent && (
-              <div className="border-t pt-4 mt-6">
-                <p className="text-sm text-gray-600">
-                  Time spent: {Math.floor(currentQuestion.timeSpent / 60)}m {currentQuestion.timeSpent % 60}s
-                </p>
-              </div>
-            )}
-
-            {/* Navigation */}
-            <div className="flex items-center justify-between mt-8 pt-6 border-t-2">
-              <Button
-                variant="outline"
-                onClick={() => setSelectedMCQ(Math.max(0, selectedMCQ - 1))}
-                disabled={selectedMCQ === 0}
-              >
-                <ChevronLeft className="h-4 w-4 mr-2" />
-                Previous
-              </Button>
-
-              <div className="text-sm text-gray-600 font-medium">
-                Question {selectedMCQ + 1} of {filteredQuestions.length}
-              </div>
-
-              <Button
-                variant="outline"
-                onClick={() => setSelectedMCQ(Math.min(filteredQuestions.length - 1, selectedMCQ + 1))}
-                disabled={selectedMCQ === filteredQuestions.length - 1}
-              >
-                Next
-                <ChevronRight className="h-4 w-4 ml-2" />
-              </Button>
-            </div>
-          </Card>
-        </div>
+          </div>
+        )}
       </div>
     </div>
   );
