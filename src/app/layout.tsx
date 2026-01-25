@@ -4,6 +4,7 @@ import './globals.css';
 import type { Metadata } from 'next';
 import { NetworkStatus } from '@/components/NetworkStatus';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { StripeScript } from '@/components/StripeScript';
 
 // Get base URL for absolute paths
 const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 
@@ -66,6 +67,7 @@ export default function RootLayout({
         <body>
           <ErrorBoundary>
             <NetworkStatus/>
+            <StripeScript/>
             <AuthProvider>
               {children}
             </AuthProvider>
