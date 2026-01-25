@@ -132,7 +132,7 @@ export default function PricingPage() {
         <div className="container mx-auto max-w-6xl px-4 text-center">
           <div className="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm px-4 py-2 rounded-full mb-6">
             <Sparkles className="h-4 w-4" />
-            <span className="text-sm font-semibold">Limited Time Launch Offer - 50% OFF</span>
+            <span className="text-sm font-semibold">Limited Time Launch Offer -80% OFF</span>
           </div>
           <h1 className="text-5xl md:text-6xl font-bold mb-6">
             Ace Your AP CS A Exam
@@ -230,10 +230,12 @@ export default function PricingPage() {
                 </div>
               ))}
             </div>
+            <div className="flex justify-center mb-6">
 {React.createElement('stripe-buy-button', {
   'buy-button-id': 'buy_btn_1StXYvLjtL6H5DDg3ru4FMwU',
   'publishable-key': 'pk_live_51OmqHSLjtL6H5DDguApXwAGi7o73Y5cSCDGpb8P1d7kSoX4Z7dulkmAlgUKU9rKbx5Y8YGT8PCkz4okdHkmPfBsc00jBA1WCs4'
 })}
+</div>
             {/* Stripe Buy Button */}
             {/* <div className="stripe-buy-button-container mb-6">
               <StripeBuyButton
@@ -337,7 +339,7 @@ export default function PricingPage() {
             <Card className="p-6 border-l-4 border-indigo-500">
               <h3 className="font-bold text-gray-900 mb-2 text-lg">Can I cancel anytime?</h3>
               <p className="text-gray-600">
-                Yes! You can cancel your subscription at any time with no penalties or fees. Your access continues until the end of your billing period.
+                Yes! You can cancel your subscription at any time and you will receive the amount back prorated. 
               </p>
             </Card>
             <Card className="p-6 border-l-4 border-purple-500">

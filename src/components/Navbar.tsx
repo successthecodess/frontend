@@ -1,11 +1,23 @@
 'use client';
 
 import { useAuth } from '@/contexts/AuthContext';
-import { Code, Menu, X, Home, Target, GraduationCap, Crown, Sparkles } from 'lucide-react';
+import { Code, Menu, X, Home, Target, GraduationCap, Crown, Sparkles, Loader2, Settings } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
+
+interface UserAccess {
+  hasFreeTrialAccess: boolean;
+  hasBasicAccess: boolean;
+  hasFullAccess: boolean;
+  hasPremiumAccess: boolean;
+  canAccessPractice: boolean;
+  canAccessTests: boolean;
+  canAccessCourse: boolean;
+  canAccessPremiumExam: boolean;
+  accessTier: 'none' | 'trial' | 'basic' | 'full' | 'premium';
+}
 
 export function Navbar() {
   const { user, logout } = useAuth();
@@ -13,13 +25,14 @@ export function Navbar() {
   const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [subscriptionStatus, setSubscriptionStatus] = useState<string>('FREE');
+  const [userAccess, setUserAccess] = useState<UserAccess | null>(null);
+  const [loadingAccess, setLoadingAccess] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Load subscription status
-    const status = localStorage.getItem('subscriptionStatus') || 'FREE';
-    setSubscriptionStatus(status);
+    if (user) {
+      checkAccess();
+    }
 
     // Close menu when clicking outside
     const handleClickOutside = (event: MouseEvent) => {
@@ -30,7 +43,38 @@ export function Navbar() {
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [user]);
+
+  const checkAccess = async () => {
+    if (!user) return;
+
+    setLoadingAccess(true);
+    try {
+      const token = localStorage.getItem('authToken');
+      
+      if (!token) {
+        return;
+      }
+      
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/auth/oauth/my-access`,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+
+      if (response.ok) {
+        const accessData = await response.json();
+        setUserAccess(accessData);
+      } else {
+        console.error('Failed to fetch user access');
+      }
+    } catch (error) {
+      console.error('Failed to check access:', error);
+    } finally {
+      setLoadingAccess(false);
+    }
+  };
 
   const navLinks = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -39,7 +83,29 @@ export function Navbar() {
   ];
 
   const isActive = (href: string) => pathname === href;
-  const isPremium = subscriptionStatus === 'ACTIVE' || subscriptionStatus === 'TRIALING';
+
+  // Determine if user has premium based on userAccess
+  const isPremium = userAccess?.hasPremiumAccess || userAccess?.accessTier === 'premium';
+  const isFullAccess = userAccess?.hasFullAccess || userAccess?.accessTier === 'full';
+  const isBasicAccess = userAccess?.hasBasicAccess || userAccess?.accessTier === 'basic';
+
+  // Get display status
+  const getAccessLabel = () => {
+    if (!userAccess) return 'Loading...';
+    
+    switch (userAccess.accessTier) {
+      case 'premium':
+        return 'Premium';
+      case 'full':
+        return 'Full Access';
+      case 'basic':
+        return 'Basic Access';
+      case 'trial':
+        return 'Free Trial';
+      default:
+        return 'Free Plan';
+    }
+  };
 
   // Get user initials
   const getInitials = (name: string | undefined): string => {
@@ -55,6 +121,9 @@ export function Navbar() {
     window.open('https://billing.stripe.com/p/login/cNicN63LC0GI47A75E2wU00', '_blank');
   };
 
+  // Show manage subscription if user has ANY paid access (basic, full, or premium)
+  const showManageSubscription =  isPremium;
+
   return (
     <nav className="sticky top-0 z-50 border-b bg-white shadow-sm">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -62,7 +131,7 @@ export function Navbar() {
           {/* Logo and Desktop Nav */}
           <div className="flex items-center gap-8">
             {/* Logo */}
-            <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0">
+            <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0 cursor-pointer">
               <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600">
                 <Code className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
               </div>
@@ -80,7 +149,7 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                       active
                         ? 'bg-indigo-50 text-indigo-600'
                         : 'text-gray-700 hover:bg-gray-50 hover:text-indigo-600'
@@ -94,13 +163,27 @@ export function Navbar() {
             </div>
           </div>
 
-          {/* User Menu (Desktop) */}
+          {/* Desktop Actions */}
           <div className="hidden md:flex items-center gap-3">
+            {/* Manage Subscription Button - Desktop */}
+            {user && showManageSubscription && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleManageSubscription}
+                className="gap-2 border-indigo-200 hover:bg-indigo-50 hover:border-indigo-300 cursor-pointer"
+              >
+                <Settings className="h-4 w-4" />
+                Manage Subscription
+              </Button>
+            )}
+
+            {/* User Menu */}
             {user && (
               <div className="relative" ref={menuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all"
+                  className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-50 transition-all cursor-pointer"
                 >
                   <div className="w-9 h-9 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center text-white font-semibold text-sm shadow-md">
                     {getInitials(user.name)}
@@ -111,13 +194,18 @@ export function Navbar() {
                       {isPremium && <Crown className="h-4 w-4 text-yellow-500" />}
                     </p>
                     <p className="text-xs text-gray-600">
-                      {isPremium ? (
+                      {loadingAccess ? (
+                        <span className="flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Loading...
+                        </span>
+                      ) : isPremium ? (
                         <span className="text-indigo-600 font-semibold flex items-center gap-1">
                           <Sparkles className="h-3 w-3" />
                           Premium
                         </span>
                       ) : (
-                        'Free Plan'
+                        getAccessLabel()
                       )}
                     </p>
                   </div>
@@ -137,38 +225,53 @@ export function Navbar() {
                           <p className="text-sm text-gray-600 truncate">{user.email}</p>
                         </div>
                       </div>
-                      {isPremium ? (
+                      {loadingAccess ? (
+                        <div className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Loading access...
+                        </div>
+                      ) : isPremium ? (
                         <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
                           <Crown className="h-4 w-4" />
                           Premium Member
                         </div>
+                      ) : isFullAccess ? (
+                        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                          <GraduationCap className="h-4 w-4" />
+                          Full Access
+                        </div>
+                      ) : isBasicAccess ? (
+                        <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                          <Target className="h-4 w-4" />
+                          Basic Access
+                        </div>
                       ) : (
                         <div className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm">
-                          Free Plan
+                          {getAccessLabel()}
                         </div>
                       )}
                     </div>
 
                     {/* Menu Items */}
                     <div className="py-2">
-                      {isPremium ? (
+                      {showManageSubscription ? (
                         <button
                           onClick={() => {
                             handleManageSubscription();
                             setUserMenuOpen(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-all text-left"
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-all text-left cursor-pointer"
                         >
-                          <Crown className="h-5 w-5 text-gray-600" />
+                          <Settings className="h-5 w-5 text-gray-600" />
                           <span className="text-gray-700 font-medium">Manage Subscription</span>
                         </button>
                       ) : (
                         <button
                           onClick={() => {
-                            router.push('/dashboard/pricing');
+                            router.push('/pricing');
                             setUserMenuOpen(false);
                           }}
-                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-indigo-50 transition-all text-left bg-gradient-to-r from-indigo-50 to-purple-50"
+                          className="w-full flex items-center gap-3 px-4 py-3 hover:bg-indigo-50 transition-all text-left bg-gradient-to-r from-indigo-50 to-purple-50 cursor-pointer"
                         >
                           <Crown className="h-5 w-5 text-indigo-600" />
                           <div>
@@ -185,7 +288,7 @@ export function Navbar() {
                           logout();
                           setUserMenuOpen(false);
                         }}
-                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-all text-left text-red-600"
+                        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-red-50 transition-all text-left text-red-600 cursor-pointer"
                       >
                         <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -203,7 +306,7 @@ export function Navbar() {
           <Button 
             variant="ghost" 
             size="icon" 
-            className="md:hidden"
+            className="md:hidden cursor-pointer"
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
           >
             {mobileMenuOpen ? (
@@ -232,14 +335,29 @@ export function Navbar() {
                     <p className="text-xs text-gray-600">{user.email}</p>
                   </div>
                 </div>
-                {isPremium ? (
+                {loadingAccess ? (
+                  <div className="bg-gray-100 text-gray-600 px-3 py-2 rounded-lg text-sm flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Loading...
+                  </div>
+                ) : isPremium ? (
                   <div className="bg-gradient-to-r from-indigo-600 to-purple-600 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
                     <Crown className="h-4 w-4" />
                     Premium Member
                   </div>
+                ) : isFullAccess ? (
+                  <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                    <GraduationCap className="h-4 w-4" />
+                    Full Access
+                  </div>
+                ) : isBasicAccess ? (
+                  <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-3 py-2 rounded-lg text-sm font-semibold flex items-center gap-2">
+                    <Target className="h-4 w-4" />
+                    Basic Access
+                  </div>
                 ) : (
                   <div className="bg-gray-100 text-gray-700 px-3 py-2 rounded-lg text-sm">
-                    Free Plan
+                    {getAccessLabel()}
                   </div>
                 )}
               </div>
@@ -254,7 +372,7 @@ export function Navbar() {
                   <Link
                     key={link.href}
                     href={link.href}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-all cursor-pointer ${
                       active
                         ? 'bg-indigo-50 text-indigo-600 border border-indigo-100'
                         : 'text-gray-700 hover:bg-gray-50'
@@ -270,21 +388,21 @@ export function Navbar() {
 
             {/* Mobile Actions */}
             <div className="space-y-2 pt-2 border-t">
-              {isPremium ? (
+              {showManageSubscription ? (
                 <Button
                   variant="outline"
-                  className="w-full gap-2"
+                  className="w-full gap-2 border-indigo-200 hover:bg-indigo-50 cursor-pointer"
                   onClick={() => {
                     handleManageSubscription();
                     setMobileMenuOpen(false);
                   }}
                 >
-                  <Crown className="h-4 w-4" />
+                  <Settings className="h-4 w-4" />
                   Manage Subscription
                 </Button>
               ) : (
                 <Button
-                  className="w-full gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700"
+                  className="w-full gap-2 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 cursor-pointer"
                   onClick={() => {
                     router.push('/pricing');
                     setMobileMenuOpen(false);
@@ -297,7 +415,7 @@ export function Navbar() {
 
               <Button
                 variant="outline"
-                className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                className="w-full gap-2 border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
                 onClick={() => {
                   logout();
                   setMobileMenuOpen(false);
