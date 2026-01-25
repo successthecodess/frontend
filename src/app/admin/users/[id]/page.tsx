@@ -272,7 +272,7 @@ export default function UserEditPage() {
               type="text"
               value={newTag}
               onChange={(e) => setNewTag(e.target.value)}
-              placeholder="Enter tag name (e.g., apcs-exam)"
+              placeholder="Enter tag name (e.g., apcsa-exam)"
               className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 text-sm"
               onKeyPress={(e) => e.key === 'Enter' && handleAddTag()}
             />
@@ -321,8 +321,8 @@ export default function UserEditPage() {
           </label>
           <div className="flex flex-wrap gap-2">
             {[
-              { tag: 'apcs-test-access', label: 'Practice Test', color: 'bg-purple-50 text-purple-700 border-purple-200' },
-              { tag: 'apcs-exam', label: '🔥 Premium Full Exam', color: 'bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-700 border-orange-300' },
+              { tag: 'apcsa-test-access', label: 'Practice Test', color: 'bg-purple-50 text-purple-700 border-purple-200' },
+              { tag: 'apcsa-exam', label: '🔥 Premium Full Exam', color: 'bg-gradient-to-r from-yellow-50 to-orange-50 text-orange-700 border-orange-300' },
              
             ].map(({ tag, label, color }) => (
               <Button
@@ -331,7 +331,7 @@ export default function UserEditPage() {
                 variant="outline"
                 onClick={() => handleAddTag(tag)}
                 disabled={user.ghlTags?.includes(tag) || addingTag}
-                className={`text-xs border ${color} ${user.ghlTags?.includes(tag) ? 'opacity-50' : ''} ${tag === 'apcs-exam' ? 'font-bold shadow-md' : ''}`}
+                className={`text-xs border ${color} ${user.ghlTags?.includes(tag) ? 'opacity-50' : ''} ${tag === 'apcsa-exam' ? 'font-bold shadow-md' : ''}`}
               >
                 {user.ghlTags?.includes(tag) ? (
                   <>
@@ -352,8 +352,8 @@ export default function UserEditPage() {
               <strong>Tag Guide:</strong>
             </p>
             <ul className="text-xs text-blue-600 mt-1 space-y-1">
-              <li>• <strong>apcs-test-access</strong>: Full practice test access</li>
-              <li>• <strong className="text-orange-600">apcs-exam</strong>: 🔥 PREMIUM - Full exam with detailed report, AP score prediction, analytics & recommendations</li>
+              <li>• <strong>apcsa-test-access</strong>: Full practice test access</li>
+              <li>• <strong className="text-orange-600">apcsa-exam</strong>: 🔥 PREMIUM - Full exam with detailed report, AP score prediction, analytics & recommendations</li>
              
             </ul>
           </div>
@@ -404,7 +404,7 @@ export default function UserEditPage() {
               />
               <div className="flex-1">
                 <p className="font-bold text-gray-900">🔥 Premium Full Exam Access</p>
-                <p className="text-sm text-gray-700">Access to premium features (also requires <strong>apcs-exam</strong> tag)</p>
+                <p className="text-sm text-gray-700">Access to premium features (also requires <strong>apcsa-exam</strong> tag)</p>
               </div>
             </label>
 
