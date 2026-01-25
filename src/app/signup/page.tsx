@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Code, Mail, User, Phone, Loader2, ArrowLeft, CheckCircle } from 'lucide-react';
+import { NavbarHome } from '@/components/NavbarHome';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -71,6 +72,8 @@ export default function SignUpPage() {
 
   if (emailSent) {
     return (
+      <>
+      <NavbarHome/>
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
         <Card className="w-full max-w-md p-6 sm:p-8">
           <div className="text-center">
@@ -112,10 +115,13 @@ export default function SignUpPage() {
           </div>
         </Card>
       </div>
+      </>
     );
   }
 
   return (
+    <>
+    <NavbarHome/>
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4 py-8">
       <Card className="w-full max-w-md p-6 sm:p-8">
         <Link
@@ -261,5 +267,6 @@ export default function SignUpPage() {
         </div>
       </Card>
     </div>
+    </>
   );
 }

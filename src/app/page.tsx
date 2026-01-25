@@ -24,19 +24,19 @@ export default function LandingPage() {
             </Link>
             <div className="flex gap-1.5 sm:gap-2 md:gap-3 flex-shrink-0">
               <Link href="/pricing">
-                <Button variant="ghost" size="sm" className="font-medium text-xs sm:text-sm md:text-base hover:bg-purple-50 transition-colors px-2 sm:px-3 md:px-4">
+                <Button variant="ghost" size="sm" className="font-medium text-xs sm:text-sm md:text-base hover:bg-purple-50 transition-colors px-2 sm:px-3 md:px-4 cursor-pointer">
                   <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5 md:mr-2" />
                   <span className="hidden sm:inline">Pricing</span>
                 </Button>
               </Link>
               <Link href="/login">
-                <Button variant="ghost" size="sm" className="font-medium text-xs sm:text-sm md:text-base hover:bg-indigo-50 transition-colors px-2 sm:px-3 md:px-4">
+                <Button variant="ghost" size="sm" className="cursor-pointer font-medium text-xs sm:text-sm md:text-base hover:bg-indigo-50 transition-colors px-2 sm:px-3 md:px-4">
                   <LogIn className="h-3 w-3 sm:h-4 sm:w-4 sm:mr-1.5 md:mr-2" />
                   <span className="xs:inline">Login</span>
                 </Button>
               </Link>
               <Link href="/signup">
-                <Button size="sm" className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-xs sm:text-sm md:text-base shadow-md hover:shadow-lg transition-all px-2 sm:px-3 md:px-4">
+                <Button size="sm" className="cursor-pointer bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-xs sm:text-sm md:text-base shadow-md hover:shadow-lg transition-all px-2 sm:px-3 md:px-4">
                   <span className="xs:inline">Sign Up</span>
                 </Button>
               </Link>
@@ -44,7 +44,7 @@ export default function LandingPage() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  className="border-2 border-purple-600 text-purple-600 hover:bg-purple-50 font-bold transition-all hover:scale-105 shadow-sm"
+                  className="cursor-pointer border-2 border-purple-600 text-purple-600 hover:bg-purple-50 font-bold transition-all hover:scale-105 shadow-sm"
                 >
                   <Home className="h-4 w-4 mr-2" />
                   <span className="hidden sm:inline">Back to </span>Home
@@ -291,7 +291,7 @@ export default function LandingPage() {
                 className="object-contain w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 flex-shrink-0"
               />
               <span className="text-sm sm:text-base md:text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                AP CS A Practice
+                AP CS A Exam Prep
               </span>
             </Link>
             <div className="flex flex-col items-center md:items-end gap-1.5 sm:gap-2">

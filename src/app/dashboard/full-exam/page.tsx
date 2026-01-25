@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { Card } from '@/components/ui/card';
@@ -377,19 +377,26 @@ export default function FullExamStartPage() {
           </Card>
 
           {/* Contact for Access */}
-          <Card className="p-8 bg-gray-50">
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Want Premium Access?
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Contact your instructor or course administrator to get premium access to the full exam.
-              </p>
-              <p className="text-sm text-gray-500">
-                If you believe you should have access, please contact support or check with your instructor.
-              </p>
-            </div>
-          </Card>
+         <Card className="p-8 bg-gray-50 border-2 border-gray-200">
+  <div className="text-center">
+    <h3 className="text-xl font-bold text-gray-900 mb-3">
+      🔒 Premium Feature
+    </h3>
+    <p className="text-gray-600 mb-6">
+      Subscribe to get unlimited access to full AP Computer Science A practice exams.
+    </p>
+    
+    {/* Stripe Subscribe Button */}
+    <div className="flex justify-center mb-4">
+      {React.createElement('stripe-buy-button', {
+        'buy-button-id': 'buy_btn_1StboLLjtL6H5DDgtyuMoZGM',
+        'publishable-key': 'pk_live_51OmqHSLjtL6H5DDguApXwAGi7o73Y5cSCDGpb8P1d7kSoX4Z7dulkmAlgUKU9rKbx5Y8YGT8PCkz4okdHkmPfBsc00jBA1WCs4'
+      })}
+    </div>
+
+  
+  </div>
+</Card>
         </div>
       </div>
     );

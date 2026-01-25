@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -265,19 +265,36 @@ export default function PracticePage() {
             </div>
           </Card>
 
-          <Card className="p-8 bg-gray-50">
-            <div className="text-center">
-              <h3 className="text-xl font-bold text-gray-900 mb-3">
-                Want Full Practice Test Access?
-              </h3>
-              <p className="text-gray-600 mb-4">
-                Contact your instructor or course administrator to get access to unlimited practice tests.
-              </p>
-              <p className="text-sm text-gray-500">
-                If you believe you should have access, please contact support or check with your instructor.
-              </p>
-            </div>
-          </Card>
+         <Card className="p-8 bg-gray-50 border-2 border-gray-200">
+  <div className="text-center">
+    <h3 className="text-xl font-bold text-gray-900 mb-3">
+      Want Full Practice Test Access?
+    </h3>
+    
+    <p className="text-gray-600 mb-6">
+      Subscribe now to get unlimited practice tests with instant grading and detailed solutions.
+    </p>
+
+    {/* Stripe Buy Button */}
+    <div className="flex justify-center mb-4">
+      {React.createElement('stripe-buy-button', {
+        'buy-button-id': 'buy_btn_1Stc8rLjtL6H5DDgTt1kN6v9',
+        'publishable-key': 'pk_live_51OmqHSLjtL6H5DDguApXwAGi7o73Y5cSCDGpb8P1d7kSoX4Z7dulkmAlgUKU9rKbx5Y8YGT8PCkz4okdHkmPfBsc00jBA1WCs4'
+      })}
+    </div>
+
+    <p className="text-sm text-gray-500">
+      If you believe you should have access, please contact{' '}
+      <a 
+        href="mailto:daniel@enginearu.com" 
+        className="text-indigo-600 hover:underline font-medium"
+      >
+        support
+      </a>
+      {' '}or check with your instructor.
+    </p>
+  </div>
+</Card>
         </div>
       </div>
     );

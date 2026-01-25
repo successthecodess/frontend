@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 
 interface UserAccess {
   hasFreeTrialAccess: boolean;
@@ -122,7 +123,7 @@ export function Navbar() {
   };
 
   // Show manage subscription if user has ANY paid access (basic, full, or premium)
-  const showManageSubscription =  isPremium;
+  const showManageSubscription = isFullAccess || isPremium;
 
   return (
     <nav className="sticky top-0 z-50 border-b bg-white shadow-sm">
@@ -132,11 +133,15 @@ export function Navbar() {
           <div className="flex items-center gap-8">
             {/* Logo */}
             <Link href="/dashboard" className="flex items-center gap-2 flex-shrink-0 cursor-pointer">
-              <div className="flex items-center justify-center w-8 h-8 sm:w-9 sm:h-9 rounded-lg bg-gradient-to-br from-indigo-600 to-purple-600">
-                <Code className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
-              </div>
+                <Image
+                                         src="/img.jpeg"
+                                         alt="AP CS A Logo"
+                                         width={40}
+                                         height={40}
+                                         className="object-contain w-8 h-8 sm:w-12 sm:h-12 md:w-14 md:h-14 flex-shrink-0"
+                                       />
               <span className="text-lg sm:text-xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent hidden sm:inline">
-                AP CS Bank
+                AP CS Exam Prep
               </span>
             </Link>
             

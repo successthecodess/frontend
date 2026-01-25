@@ -7,6 +7,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Code, Mail, Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
 import { Suspense } from 'react';
+import { NavbarHome } from '@/components/NavbarHome';
 
 function LoginForm() {
   const router = useRouter();
@@ -64,7 +65,9 @@ function LoginForm() {
 
   // Email sent success state
   if (emailSent) {
-    return (
+    return (<>
+  
+      <NavbarHome/>
       <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
         <Card className="w-full max-w-md p-6 sm:p-8">
           <div className="text-center">
@@ -120,11 +123,15 @@ function LoginForm() {
           </div>
         </Card>
       </div>
+        </>
     );
   }
 
   // Main login form
   return (
+    <>
+    <NavbarHome/>
+   
     <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-white to-purple-50 flex items-center justify-center px-4">
       <Card className="w-full max-w-md p-6 sm:p-8">
         <div className="text-center mb-6 sm:mb-8">
@@ -204,6 +211,7 @@ function LoginForm() {
        
       </Card>
     </div>
+     </>
   );
 }
 
