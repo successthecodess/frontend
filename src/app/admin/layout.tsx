@@ -17,7 +17,8 @@ import {
   Gift,
   FileText,
   GraduationCap,
-  BarChart
+  BarChart,
+  TestTubes
 } from 'lucide-react';
 
 export default function AdminLayout({
@@ -104,6 +105,7 @@ export default function AdminLayout({
     { name: 'Feature Flags', href: '/admin/features', icon: Flag },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
     { name: 'Metrics', href: '/admin/full-exams', icon: BarChart },
+    { name: 'Practice Tests', href: '/admin/practice-tests', icon: TestTubes },
     { name: 'Bulk Upload', href: '/admin/upload', icon: Upload },
    
     { name: 'GHL Setup', href: '/admin/ghl-setup', icon: Settings },

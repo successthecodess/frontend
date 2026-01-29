@@ -429,7 +429,49 @@ async getExamHistory() {
     const url = `${API_BASE_URL}/admin/full-exams/users/${userId}/history`;
     return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetStudentHistory');
   },
+// Add these to your examApi object
 
+// ADMIN: Practice Test Analytics
+async adminGetPracticeUsers() {
+  const url = `${API_BASE_URL}/admin/practice-tests/users`;
+  return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetPracticeUsers');
+},
+
+async adminGetPracticeStatistics() {
+  const url = `${API_BASE_URL}/admin/practice-tests/statistics`;
+  return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetPracticeStatistics');
+},
+
+async adminGetPracticeSessions(filters?: {
+  userId?: string;
+  sessionType?: string;
+  limit?: number;
+  offset?: number;
+}) {
+  const params = new URLSearchParams();
+  if (filters?.userId) params.append('userId', filters.userId);
+  if (filters?.sessionType) params.append('sessionType', filters.sessionType);
+  if (filters?.limit) params.append('limit', filters.limit.toString());
+  if (filters?.offset) params.append('offset', filters.offset.toString());
+
+  const url = `${API_BASE_URL}/admin/practice-tests/sessions?${params.toString()}`;
+  return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetPracticeSessions');
+},
+
+async adminGetUserPracticeHistory(userId: string) {
+  const url = `${API_BASE_URL}/admin/practice-tests/users/${userId}/history`;
+  return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetUserPracticeHistory');
+},
+
+async adminGetSessionDetails(sessionId: string) {
+  const url = `${API_BASE_URL}/admin/practice-tests/sessions/${sessionId}`;
+  return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetSessionDetails');
+},
+
+async adminGetUserAnalytics(userId: string) {
+  const url = `${API_BASE_URL}/admin/practice-tests/users/${userId}/analytics`;
+  return handleResponse(url, { headers: getAuthHeaders() }, 'adminGetUserAnalytics');
+},
   // ADMIN: Get exam attempt details
   async adminGetExamDetails(examAttemptId: string) {
     const url = `${API_BASE_URL}/admin/full-exams/attempts/${examAttemptId}`;
