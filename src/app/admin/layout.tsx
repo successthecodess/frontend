@@ -104,7 +104,7 @@ export default function AdminLayout({
      { name: 'Questions', href: '/admin/questions', icon: Settings },
     { name: 'Feature Flags', href: '/admin/features', icon: Flag },
     { name: 'Courses', href: '/admin/courses', icon: BookOpen },
-    { name: 'Metrics', href: '/admin/full-exams', icon: BarChart },
+    { name: 'Exam Metrics', href: '/admin/full-exams', icon: BarChart },
     { name: 'Practice Tests', href: '/admin/practice-tests', icon: TestTubes },
     { name: 'Bulk Upload', href: '/admin/upload', icon: Upload },
    
