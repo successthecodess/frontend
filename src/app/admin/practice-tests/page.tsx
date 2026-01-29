@@ -16,6 +16,7 @@ import {
   BarChart3,
   Target,
   Award,
+  AlertCircle,
 } from 'lucide-react';
 import { examApi } from '@/lib/examApi';
 
@@ -25,6 +26,7 @@ export default function AdminPracticeTestsPage() {
   const [statistics, setStatistics] = useState<any>(null);
   const [users, setUsers] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
+  const [allSessions, setAllSessions] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [sessionTypeFilter, setSessionTypeFilter] = useState<string>('all');
   const [selectedUser, setSelectedUser] = useState<string | null>(null);
@@ -39,12 +41,13 @@ export default function AdminPracticeTestsPage() {
       const [statsRes, usersRes, sessionsRes] = await Promise.all([
         examApi.adminGetPracticeStatistics(),
         examApi.adminGetPracticeUsers(),
-        examApi.adminGetPracticeSessions({ limit: 20 }),
+        examApi.adminGetPracticeSessions({ limit: 100 }), // Increased limit
       ]);
 
       setStatistics(statsRes.data);
       setUsers(usersRes.data.users);
       setSessions(sessionsRes.data.sessions);
+      setAllSessions(sessionsRes.data.sessions);
     } catch (error) {
       console.error('Failed to load data:', error);
     } finally {
@@ -54,7 +57,7 @@ export default function AdminPracticeTestsPage() {
 
   const loadSessions = async () => {
     try {
-      const filters: any = { limit: 20 };
+      const filters: any = { limit: 100 };
       if (sessionTypeFilter !== 'all') filters.sessionType = sessionTypeFilter;
       if (selectedUser) filters.userId = selectedUser;
 
@@ -81,9 +84,22 @@ export default function AdminPracticeTestsPage() {
         return 'bg-green-100 text-green-800';
       case 'REVIEW':
         return 'bg-yellow-100 text-yellow-800';
+      case 'ADAPTIVE':
+        return 'bg-indigo-100 text-indigo-800';
+      case 'FREE_TRIAL':
+        return 'bg-pink-100 text-pink-800';
+      case 'MIXED_PRACTICE':
+        return 'bg-orange-100 text-orange-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const formatSessionType = (type: string) => {
+    return type
+      .split('_')
+      .map(word => word.charAt(0) + word.slice(1).toLowerCase())
+      .join(' ');
   };
 
   const filteredUsers = users.filter(
@@ -91,6 +107,36 @@ export default function AdminPracticeTestsPage() {
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.name?.toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  const exportAllSessions = () => {
+    try {
+      const csvData = [
+        ['Student Name', 'Student Email', 'Session Type', 'Questions', 'Correct', 'Accuracy (%)', 'Duration (min)', 'Date'],
+        ...allSessions.map((session) => [
+          session.user.name || 'N/A',
+          session.user.email,
+          formatSessionType(session.sessionType),
+          session.totalQuestions,
+          session.correctAnswers,
+          session.accuracyRate?.toFixed(1) || '0',
+          Math.floor((session.totalDuration || 0) / 60),
+          new Date(session.endedAt).toLocaleDateString(),
+        ]),
+      ];
+
+      const csv = csvData.map(row => row.join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `practice-sessions-${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error('Failed to export CSV:', error);
+      alert('Failed to export data');
+    }
+  };
 
   if (loading) {
     return (
@@ -173,7 +219,10 @@ export default function AdminPracticeTestsPage() {
           <Card className="p-6 lg:col-span-1">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900">Students</h3>
-              
+              <Button size="sm" variant="outline" onClick={exportAllSessions}>
+                <Download className="h-4 w-4 mr-2" />
+                Export
+              </Button>
             </div>
 
             <div className="mb-4">
@@ -199,30 +248,37 @@ export default function AdminPracticeTestsPage() {
                 }`}
               >
                 <p className="font-semibold text-gray-900">All Students</p>
-                <p className="text-sm text-gray-600">{sessions.length} total sessions</p>
+                <p className="text-sm text-gray-600">{allSessions.length} total sessions</p>
               </button>
 
-              {filteredUsers.map((user) => (
-                <button
-                  key={user.id}
-                  onClick={() => setSelectedUser(user.id)}
-                  className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
-                    selectedUser === user.id
-                      ? 'border-indigo-500 bg-indigo-50'
-                      : 'border-gray-200 hover:border-gray-300'
-                  }`}
-                >
-                  <p className="font-semibold text-gray-900">{user.name || user.email}</p>
-                  <p className="text-sm text-gray-600">
-                    {user._count.studySessions} session{user._count.studySessions !== 1 ? 's' : ''}
-                  </p>
-                  {user.studySessions[0] && (
-                    <p className="text-xs text-gray-500 mt-1">
-                      Last: {user.studySessions[0].accuracyRate?.toFixed(1)}% accuracy
+              {filteredUsers.length === 0 ? (
+                <div className="text-center py-8">
+                  <AlertCircle className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                  <p className="text-sm text-gray-600">No students found</p>
+                </div>
+              ) : (
+                filteredUsers.map((user) => (
+                  <button
+                    key={user.id}
+                    onClick={() => setSelectedUser(user.id)}
+                    className={`w-full text-left p-3 rounded-lg border-2 transition-all ${
+                      selectedUser === user.id
+                        ? 'border-indigo-500 bg-indigo-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <p className="font-semibold text-gray-900">{user.name || user.email}</p>
+                    <p className="text-sm text-gray-600">
+                      {user._count.studySessions} session{user._count.studySessions !== 1 ? 's' : ''}
                     </p>
-                  )}
-                </button>
-              ))}
+                    {user.studySessions && user.studySessions.length > 0 && user.studySessions[0] && (
+                      <p className="text-xs text-gray-500 mt-1">
+                        Last: {user.studySessions[0].accuracyRate?.toFixed(1) || 0}% accuracy
+                      </p>
+                    )}
+                  </button>
+                ))
+              )}
             </div>
           </Card>
 
@@ -230,7 +286,20 @@ export default function AdminPracticeTestsPage() {
           <Card className="p-6 lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900">Practice Sessions</h3>
-              
+              <select
+                value={sessionTypeFilter}
+                onChange={(e) => setSessionTypeFilter(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              >
+                <option value="all">All Types</option>
+                <option value="PRACTICE">Practice</option>
+                <option value="TIMED_DRILL">Timed Drill</option>
+                <option value="EXAM">Exam</option>
+                <option value="REVIEW">Review</option>
+                <option value="ADAPTIVE">Adaptive</option>
+                <option value="FREE_TRIAL">Free Trial</option>
+                <option value="MIXED_PRACTICE">Mixed Practice</option>
+              </select>
             </div>
 
             <div className="space-y-4 max-h-[600px] overflow-y-auto">
@@ -238,6 +307,11 @@ export default function AdminPracticeTestsPage() {
                 <div className="text-center py-12">
                   <BarChart3 className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-gray-600">No practice sessions found</p>
+                  {selectedUser && (
+                    <p className="text-sm text-gray-500 mt-2">
+                      Try selecting "All Students" or changing the filter
+                    </p>
+                  )}
                 </div>
               ) : (
                 sessions.map((session) => (
@@ -253,7 +327,10 @@ export default function AdminPracticeTestsPage() {
                         </p>
                         <p className="text-sm text-gray-600">
                           {new Date(session.endedAt).toLocaleDateString()} •{' '}
-                          {new Date(session.endedAt).toLocaleTimeString()}
+                          {new Date(session.endedAt).toLocaleTimeString([], { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
                         </p>
                       </div>
                       <span
@@ -261,7 +338,7 @@ export default function AdminPracticeTestsPage() {
                           session.sessionType
                         )}`}
                       >
-                        {session.sessionType}
+                        {formatSessionType(session.sessionType)}
                       </span>
                     </div>
 
@@ -269,19 +346,19 @@ export default function AdminPracticeTestsPage() {
                       <div>
                         <p className="text-xs text-gray-600">Questions</p>
                         <p className="text-lg font-bold text-gray-900">
-                          {session.totalQuestions}
+                          {session.totalQuestions || 0}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-600">Correct</p>
                         <p className="text-lg font-bold text-green-600">
-                          {session.correctAnswers}
+                          {session.correctAnswers || 0}
                         </p>
                       </div>
                       <div>
                         <p className="text-xs text-gray-600">Accuracy</p>
                         <p className="text-lg font-bold text-gray-900">
-                          {session.accuracyRate?.toFixed(1)}%
+                          {session.accuracyRate?.toFixed(1) || 0}%
                         </p>
                       </div>
                       <div>
