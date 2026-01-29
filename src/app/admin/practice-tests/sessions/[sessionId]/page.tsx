@@ -32,6 +32,7 @@ export default function AdminSessionDetailPage() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedQuestion, setSelectedQuestion] = useState<number>(0);
+  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadSessionDetails();
@@ -75,31 +76,83 @@ Instructor`
     window.location.href = `mailto:${session.user.email}?subject=${subject}&body=${body}`;
   };
 
-  const exportToCSV = () => {
-    if (!session) return;
 
-    const csvData = [
-      ['Question #', 'Unit', 'Topic', 'Difficulty', 'User Answer', 'Correct Answer', 'Result', 'Time Spent'],
-      ...session.responses.map((response: any, index: number) => [
+const exportToCSV = () => {
+  if (!session) return;
+
+  try {
+    setExporting(true);
+
+    // Helper function to escape CSV fields
+    const escapeCSV = (field: string | number | null | undefined): string => {
+      if (field === null || field === undefined) return '';
+      const str = String(field);
+      // If field contains comma, newline, or quotes, wrap in quotes and escape internal quotes
+      if (str.includes(',') || str.includes('\n') || str.includes('"')) {
+        return `"${str.replace(/"/g, '""')}"`;
+      }
+      return str;
+    };
+
+    // Create CSV header
+    const headers = [
+      'Question #',
+      'Unit',
+      'Topic',
+      'Difficulty',
+      'User Answer',
+      'Correct Answer',
+      'Result',
+      'Time Spent (s)',
+      'Question Text',
+    ];
+
+    // Create CSV rows
+    const rows = session.responses.map((response: any, index: number) => {
+      const questionText = response.question.questionText
+        .replace(/\n/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 200); // Limit length for CSV
+
+      return [
         index + 1,
         response.question.unit?.name || 'Unknown',
-        response.question.topic?.name || 'Unknown',
+        response.question.topic?.name || 'N/A',
         response.difficultyAtTime,
         response.userAnswer || 'Not answered',
         response.question.correctAnswer,
         response.isCorrect ? 'Correct' : 'Incorrect',
-        `${response.timeSpent || 0}s`,
-      ]),
-    ];
+        response.timeSpent || 0,
+        questionText,
+      ].map(escapeCSV);
+    });
 
-    const csv = csvData.map(row => row.join(',')).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
+    // Combine headers and rows
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row: string[]) => row.join(',')),
+    ].join('\n');
+
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `session-${sessionId}-results.csv`;
-    a.click();
-  };
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `session-${sessionId}-${new Date(session.endedAt).toLocaleDateString().replace(/\//g, '-')}-results.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+
+    console.log('✅ CSV exported successfully');
+  } catch (error) {
+    console.error('❌ Failed to export CSV:', error);
+    alert('Failed to export CSV. Please try again.');
+  } finally {
+    setExporting(false);
+  }
+};
 
   const markdownComponents = {
     code: ({node, inline, className, children, ...props}: any) => {
@@ -178,9 +231,22 @@ Instructor`
                 <Mail className="h-4 w-4 mr-2" />
                 Email Student
               </Button>
-              <Button variant="outline" onClick={exportToCSV}>
-                <Download className="h-4 w-4 mr-2" />
-                Export CSV
+              <Button 
+                variant="outline" 
+                onClick={exportToCSV}
+                disabled={exporting}
+              >
+                {exporting ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full mr-2" />
+                    Exporting...
+                  </>
+                ) : (
+                  <>
+                    <Download className="h-4 w-4 mr-2" />
+                    Export CSV
+                  </>
+                )}
               </Button>
             </div>
           </div>
@@ -352,6 +418,26 @@ Instructor`
               </div>
             </div>
 
+            {/* Show incorrect answer summary if student got it wrong */}
+            {!currentResponse.isCorrect && (
+              <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <XCircle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-red-900 mb-2">Incorrect Answer</p>
+                    <div className="space-y-1 text-sm">
+                      <p className="text-red-800">
+                        <span className="font-medium">Student answered:</span> {currentResponse.userAnswer || 'No answer'}
+                      </p>
+                      <p className="text-red-800">
+                        <span className="font-medium">Correct answer:</span> {currentResponse.question.correctAnswer}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
             {/* Answer Options */}
             <div className="space-y-3 mb-6">
               {currentResponse.question.options?.map((option: string, index: number) => {
@@ -387,10 +473,16 @@ Instructor`
                           </ReactMarkdown>
                         </div>
                         {isCorrect && (
-                          <p className="text-sm text-green-700 font-semibold mt-2">✓ Correct Answer</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <CheckCircle className="h-4 w-4 text-green-700" />
+                            <p className="text-sm text-green-700 font-semibold">Correct Answer</p>
+                          </div>
                         )}
                         {isUserAnswer && !isCorrect && (
-                          <p className="text-sm text-red-700 font-semibold mt-2">✗ Student's Answer</p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <XCircle className="h-4 w-4 text-red-700" />
+                            <p className="text-sm text-red-700 font-semibold">Student's Answer (Incorrect)</p>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -402,8 +494,11 @@ Instructor`
             {/* Explanation */}
             {currentResponse.question.explanation && (
               <div className="border-t pt-6">
-                <h4 className="font-semibold text-gray-900 mb-3">Explanation:</h4>
-                <div className="prose max-w-none text-gray-700">
+                <h4 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
+                  <FileText className="h-5 w-5 text-indigo-600" />
+                  Explanation:
+                </h4>
+                <div className="prose max-w-none text-gray-700 bg-gray-50 rounded-lg p-4">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {currentResponse.question.explanation}
                   </ReactMarkdown>
@@ -414,7 +509,8 @@ Instructor`
             {/* Time Spent */}
             {currentResponse.timeSpent && (
               <div className="border-t pt-4 mt-4">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 flex items-center gap-2">
+                  <Clock className="h-4 w-4" />
                   Time spent: {Math.floor(currentResponse.timeSpent / 60)}m {currentResponse.timeSpent % 60}s
                 </p>
               </div>
