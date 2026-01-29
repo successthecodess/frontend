@@ -17,6 +17,8 @@ import {
   FileText,
   Download,
   Mail,
+  AlertCircle,
+  ChevronRight,
 } from 'lucide-react';
 import { examApi } from '@/lib/examApi';
 import ReactMarkdown from 'react-markdown';
@@ -32,7 +34,6 @@ export default function AdminSessionDetailPage() {
   const [session, setSession] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [selectedQuestion, setSelectedQuestion] = useState<number>(0);
-  const [exporting, setExporting] = useState(false);
 
   useEffect(() => {
     loadSessionDetails();
@@ -76,83 +77,31 @@ Instructor`
     window.location.href = `mailto:${session.user.email}?subject=${subject}&body=${body}`;
   };
 
+  const exportToCSV = () => {
+    if (!session) return;
 
-const exportToCSV = () => {
-  if (!session) return;
-
-  try {
-    setExporting(true);
-
-    // Helper function to escape CSV fields
-    const escapeCSV = (field: string | number | null | undefined): string => {
-      if (field === null || field === undefined) return '';
-      const str = String(field);
-      // If field contains comma, newline, or quotes, wrap in quotes and escape internal quotes
-      if (str.includes(',') || str.includes('\n') || str.includes('"')) {
-        return `"${str.replace(/"/g, '""')}"`;
-      }
-      return str;
-    };
-
-    // Create CSV header
-    const headers = [
-      'Question #',
-      'Unit',
-      'Topic',
-      'Difficulty',
-      'User Answer',
-      'Correct Answer',
-      'Result',
-      'Time Spent (s)',
-      'Question Text',
-    ];
-
-    // Create CSV rows
-    const rows = session.responses.map((response: any, index: number) => {
-      const questionText = response.question.questionText
-        .replace(/\n/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim()
-        .substring(0, 200); // Limit length for CSV
-
-      return [
+    const csvData = [
+      ['Question #', 'Unit', 'Topic', 'Difficulty', 'User Answer', 'Correct Answer', 'Result', 'Time Spent'],
+      ...session.responses.map((response: any, index: number) => [
         index + 1,
         response.question.unit?.name || 'Unknown',
-        response.question.topic?.name || 'N/A',
+        response.question.topic?.name || 'Unknown',
         response.difficultyAtTime,
         response.userAnswer || 'Not answered',
         response.question.correctAnswer,
         response.isCorrect ? 'Correct' : 'Incorrect',
-        response.timeSpent || 0,
-        questionText,
-      ].map(escapeCSV);
-    });
+        `${response.timeSpent || 0}s`,
+      ]),
+    ];
 
-    // Combine headers and rows
-    const csvContent = [
-      headers.join(','),
-      ...rows.map((row: string[]) => row.join(',')),
-    ].join('\n');
-
-    // Create blob and download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const csv = csvData.map(row => row.join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
     const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `session-${sessionId}-${new Date(session.endedAt).toLocaleDateString().replace(/\//g, '-')}-results.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-
-    console.log('✅ CSV exported successfully');
-  } catch (error) {
-    console.error('❌ Failed to export CSV:', error);
-    alert('Failed to export CSV. Please try again.');
-  } finally {
-    setExporting(false);
-  }
-};
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `session-${sessionId}-results.csv`;
+    a.click();
+  };
 
   const markdownComponents = {
     code: ({node, inline, className, children, ...props}: any) => {
@@ -231,22 +180,9 @@ const exportToCSV = () => {
                 <Mail className="h-4 w-4 mr-2" />
                 Email Student
               </Button>
-              <Button 
-                variant="outline" 
-                onClick={exportToCSV}
-                disabled={exporting}
-              >
-                {exporting ? (
-                  <>
-                    <div className="animate-spin h-4 w-4 border-2 border-gray-600 border-t-transparent rounded-full mr-2" />
-                    Exporting...
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-4 w-4 mr-2" />
-                    Export CSV
-                  </>
-                )}
+              <Button variant="outline" onClick={exportToCSV}>
+                <Download className="h-4 w-4 mr-2" />
+                Export CSV
               </Button>
             </div>
           </div>
@@ -418,19 +354,25 @@ const exportToCSV = () => {
               </div>
             </div>
 
-            {/* Show incorrect answer summary if student got it wrong */}
+            {/* Incorrect Answer Alert - NEW */}
             {!currentResponse.isCorrect && (
               <div className="mb-6 p-4 bg-red-50 border-2 border-red-200 rounded-lg">
                 <div className="flex items-start gap-3">
-                  <XCircle className="h-6 w-6 text-red-600 flex-shrink-0 mt-0.5" />
+                  <AlertCircle className="h-5 w-5 text-red-600 flex-shrink-0 mt-0.5" />
                   <div className="flex-1">
-                    <p className="font-semibold text-red-900 mb-2">Incorrect Answer</p>
+                    <p className="font-semibold text-red-900 mb-2">Student answered incorrectly</p>
                     <div className="space-y-1 text-sm">
                       <p className="text-red-800">
-                        <span className="font-medium">Student answered:</span> {currentResponse.userAnswer || 'No answer'}
+                        <span className="font-semibold">Student's answer:</span>{' '}
+                        <span className="px-2 py-0.5 bg-red-100 rounded font-mono">
+                          {currentResponse.userAnswer || 'No answer'}
+                        </span>
                       </p>
-                      <p className="text-red-800">
-                        <span className="font-medium">Correct answer:</span> {currentResponse.question.correctAnswer}
+                      <p className="text-green-800">
+                        <span className="font-semibold">Correct answer:</span>{' '}
+                        <span className="px-2 py-0.5 bg-green-100 rounded font-mono">
+                          {currentResponse.question.correctAnswer}
+                        </span>
                       </p>
                     </div>
                   </div>
@@ -481,7 +423,7 @@ const exportToCSV = () => {
                         {isUserAnswer && !isCorrect && (
                           <div className="flex items-center gap-2 mt-2">
                             <XCircle className="h-4 w-4 text-red-700" />
-                            <p className="text-sm text-red-700 font-semibold">Student's Answer (Incorrect)</p>
+                            <p className="text-sm text-red-700 font-semibold">Student's Incorrect Answer</p>
                           </div>
                         )}
                       </div>
@@ -498,7 +440,7 @@ const exportToCSV = () => {
                   <FileText className="h-5 w-5 text-indigo-600" />
                   Explanation:
                 </h4>
-                <div className="prose max-w-none text-gray-700 bg-gray-50 rounded-lg p-4">
+                <div className="prose max-w-none text-gray-700 bg-indigo-50 rounded-lg p-4 border-2 border-indigo-200">
                   <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponents}>
                     {currentResponse.question.explanation}
                   </ReactMarkdown>
@@ -523,6 +465,7 @@ const exportToCSV = () => {
                 onClick={() => setSelectedQuestion(Math.max(0, selectedQuestion - 1))}
                 disabled={selectedQuestion === 0}
               >
+                <ArrowLeft className="h-4 w-4 mr-2" />
                 Previous Question
               </Button>
               <Button
@@ -531,6 +474,7 @@ const exportToCSV = () => {
                 disabled={selectedQuestion === session.responses.length - 1}
               >
                 Next Question
+                <ChevronRight className="h-4 w-4 ml-2" />
               </Button>
             </div>
           </Card>
