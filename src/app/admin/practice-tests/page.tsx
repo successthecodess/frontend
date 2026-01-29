@@ -268,9 +268,7 @@ export default function AdminPracticeTestsPage() {
                     }`}
                   >
                     <p className="font-semibold text-gray-900">{user.name || user.email}</p>
-                    <p className="text-sm text-gray-600">
-                      {user._count.studySessions} session{user._count.studySessions !== 1 ? 's' : ''}
-                    </p>
+                  
                     {user.studySessions && user.studySessions.length > 0 && user.studySessions[0] && (
                       <p className="text-xs text-gray-500 mt-1">
                         Last: {user.studySessions[0].accuracyRate?.toFixed(1) || 0}% accuracy
