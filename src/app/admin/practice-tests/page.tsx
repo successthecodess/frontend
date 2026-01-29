@@ -284,20 +284,7 @@ export default function AdminPracticeTestsPage() {
           <Card className="p-6 lg:col-span-2">
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-lg font-bold text-gray-900">Practice Sessions</h3>
-              <select
-                value={sessionTypeFilter}
-                onChange={(e) => setSessionTypeFilter(e.target.value)}
-                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
-              >
-                <option value="all">All Types</option>
-                <option value="PRACTICE">Practice</option>
-                <option value="TIMED_DRILL">Timed Drill</option>
-                <option value="EXAM">Exam</option>
-                <option value="REVIEW">Review</option>
-                <option value="ADAPTIVE">Adaptive</option>
-                <option value="FREE_TRIAL">Free Trial</option>
-                <option value="MIXED_PRACTICE">Mixed Practice</option>
-              </select>
+             
             </div>
 
             <div className="space-y-4 max-h-[600px] overflow-y-auto">
